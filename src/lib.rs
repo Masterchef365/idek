@@ -7,6 +7,12 @@ pub use watertender::vertex::Vertex;
 pub use watertender::mainloop::PlatformEvent as Event;
 pub use watertender::trivial::Primitive;
 
+/// Commonly used items
+pub mod prelude {
+    pub use super::{Settings, launch, Vertex, VertexBuffer, Context, DrawCmd, App, Event};
+    pub use anyhow::Result;
+}
+
 /// Launch settings
 pub struct Settings {
     /// MSAA samples. Must be a power of two (up to 16)
@@ -32,24 +38,25 @@ impl Default for Settings {
 /// An interface for applications
 pub trait App: Sized {
     /// Initialization function, called once to construct the app
-    fn init(ctx: Context) -> Result<Self>;
+    fn init(ctx: &mut Context) -> Result<Self>;
 
     /// Called once per frame. Most app logic should live here.
-    fn frame(&mut self, ctx: Context) -> Result<Vec<DrawCmd>>;
+    fn frame(&mut self, ctx: &mut Context) -> Result<Vec<DrawCmd>>;
 
     /// Called once per event
-    fn event(&mut self, event: Event);
+    fn event(&mut self, _event: Event) {
+    }
 }
 
 /// A transform array in row-major order
 pub type Transform = [f32; 2 * 3];
 
-type VertexBuffer = ();
-type IndexBuffer = ();
-type InstanceBuffer = ();
-type Shader = ();
-type Texture = ();
-type Instance = ();
+pub type VertexBuffer = ();
+pub type IndexBuffer = ();
+pub type InstanceBuffer = ();
+pub type Shader = ();
+pub type Texture = ();
+pub type Instance = ();
 
 /// Context with which to change the rendering environment from within an App
 pub struct Context;
