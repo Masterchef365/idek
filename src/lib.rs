@@ -49,7 +49,7 @@ pub trait App: Sized {
 }
 
 /// A transform array in row-major order
-pub type Transform = [f32; 2 * 3];
+pub type Transform = [f32; 4 * 4];
 
 slotmap::new_key_type! {
     pub struct VertexBuffer;
