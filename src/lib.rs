@@ -57,7 +57,6 @@ slotmap::new_key_type! {
     pub struct InstanceBuffer;
     pub struct Shader;
     pub struct Texture;
-    pub struct Instance;
 }
 
 /// Context with which to change the rendering environment from within an App

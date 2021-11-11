@@ -1,7 +1,10 @@
+use std::time::Instant;
+
+use slotmap::SlotMap;
 use watertender::{prelude::*, trivial::Primitive};
 use anyhow::{Result, ensure};
 use watertender::defaults::FRAMES_IN_FLIGHT;
-use crate::{DrawCmd, IndexBuffer, Instance, InstanceBuffer, Shader, Texture, VertexBuffer, App, Settings};
+use crate::{DrawCmd, IndexBuffer, InstanceBuffer, Shader, Texture, VertexBuffer, App, Settings};
 
 /// Launch an App
 pub fn launch<A: App + 'static>(settings: crate::Settings) -> Result<()> {
@@ -55,9 +58,55 @@ impl<A: App> SyncMainLoop<Settings> for EngineWrapper<A> {
     }
 }
 
-pub struct Engine {
-    
+/// Wrapper to handle dynamic buffers with greater ease
+enum FrameKeyed<T> {
+    Singular(T),
+    Dynamic([T; FRAMES_IN_FLIGHT]),
 }
+
+impl<T> FrameKeyed<T> {
+    pub fn get(&self, frame: usize) -> &T {
+        match self {
+            FrameKeyed::Singular(v) => v,
+            FrameKeyed::Dynamic(v) => &v[frame],
+        }
+    }
+
+    pub fn get_mut(&mut self, frame: usize) -> &mut T {
+        match self {
+            FrameKeyed::Singular(v) => v,
+            FrameKeyed::Dynamic(v) => &mut v[frame],
+        }
+    }
+}
+
+/// All data inside the scene UBO
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+struct SceneData {
+    cameras: [f32; 4 * 4 * 2],
+    time: f32,
+}
+
+/// The engine object. Also known as the "Context" from within usercode.
+pub struct Engine {
+    vertex_bufs: SlotMap<VertexBuffer, FrameKeyed<ManagedBuffer>>,
+    index_bufs: SlotMap<IndexBuffer, FrameKeyed<ManagedBuffer>>,
+    instance_bufs: SlotMap<InstanceBuffer, FrameKeyed<ManagedBuffer>>,
+    shaders: SlotMap<Shader, vk::Pipeline>,
+    textures: SlotMap<Texture, FrameKeyed<ManagedImage>>,
+
+    descriptor_sets: Vec<vk::DescriptorSet>,
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_set_layout: vk::DescriptorSetLayout,
+
+    scene_ubo: FrameDataUbo<SceneData>,
+    starter_kit: StarterKit,
+
+    start_time: Instant,
+}
+
+type Instance = (); // TODO
 
 // Public functions ("Context")
 impl Engine {
@@ -96,7 +145,11 @@ impl Engine {
         todo!()
     }
 
-    pub fn update_vertices(&mut self, buffer: &mut VertexBuffer, vertices: &[Vertex]) -> Result<()> {
+    pub fn update_vertices(&mut self, buffer: VertexBuffer, vertices: &[Vertex]) -> Result<()> {
+        todo!()
+    }
+
+    pub fn update_indices(&mut self, buffer: VertexBuffer, vertices: &[u32]) -> Result<()> {
         todo!()
     }
 }
@@ -122,27 +175,5 @@ impl Engine {
 
     fn winit_sync(&self) -> (vk::Semaphore, vk::Semaphore) {
         todo!()
-    }
-}
-
-/// Wrapper to handle dynamic buffers with greater ease
-enum FrameKeyed<T> {
-    Singular(T),
-    Dynamic([T; FRAMES_IN_FLIGHT]),
-}
-
-impl<T> FrameKeyed<T> {
-    pub fn get(&self, frame: usize) -> &T {
-        match self {
-            FrameKeyed::Singular(v) => v,
-            FrameKeyed::Dynamic(v) => &v[frame],
-        }
-    }
-
-    pub fn get_mut(&mut self, frame: usize) -> &mut T {
-        match self {
-            FrameKeyed::Singular(v) => v,
-            FrameKeyed::Dynamic(v) => &mut v[frame],
-        }
     }
 }
