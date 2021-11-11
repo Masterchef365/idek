@@ -119,7 +119,15 @@ type Instance = (); // TODO
 // Public functions ("Context")
 impl Engine {
     pub fn vertices(&mut self, vertices: &[Vertex], dynamic: bool) -> Result<VertexBuffer> {
-        todo!()
+        assert!(!dynamic);
+        // TODO: Think carefully about the sync here!!
+        let vertices = self.starter_kit.staging_buffer.upload_buffer_pod(
+            self.starter_kit.current_command_buffer(),
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            vertices,
+        )?;
+
+        Ok(self.vertex_bufs.insert(FrameKeyed::Singular(vertices)))
     }
 
     pub fn indices(&mut self, indices: &[u32], dynamic: bool) -> Result<IndexBuffer> {
@@ -311,6 +319,27 @@ impl Engine {
                     vk::PipelineBindPoint::GRAPHICS,
                     *self.shaders.get(cmd.shader.unwrap_or(self.default_shader_key)).unwrap()
                 );
+
+                core.device.cmd_bind_vertex_buffers(
+                    command_buffer,
+                    0,
+                    &[self
+                        .vertex_bufs
+                        .get(cmd.vertices)
+                        .unwrap()
+                        .get(self.starter_kit.frame)
+                        .instance()
+                    ],
+                    &[0],
+                );
+
+                core.device.cmd_draw(
+                    command_buffer,
+                    3,
+                    1,
+                    0,
+                    0
+                );
             }
         }
 
@@ -332,10 +361,10 @@ impl Engine {
     }
 
     fn swapchain_resize(&mut self, images: Vec<vk::Image>, extent: vk::Extent2D) -> Result<()> {
-        todo!()
+        self.starter_kit.swapchain_resize(images, extent)
     }
 
     fn winit_sync(&self) -> (vk::Semaphore, vk::Semaphore) {
-        todo!()
+        self.starter_kit.winit_sync()
     }
 }

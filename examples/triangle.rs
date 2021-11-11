@@ -10,12 +10,12 @@ const TRIANGLE_MESH: [Vertex; 3] = [
         color: [1., 0., 0.],
     },
     Vertex {
-        pos: [-0.5, -0.5, 0.],
-        color: [0., 1., 0.],
-    },
-    Vertex {
         pos: [0.5, -0.5, 0.],
         color: [0., 0., 1.],
+    },
+    Vertex {
+        pos: [-0.5, -0.5, 0.],
+        color: [0., 1., 0.],
     },
 ];
 
