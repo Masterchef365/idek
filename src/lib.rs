@@ -51,53 +51,14 @@ pub trait App: Sized {
 /// A transform array in row-major order
 pub type Transform = [f32; 2 * 3];
 
-pub type VertexBuffer = ();
-pub type IndexBuffer = ();
-pub type InstanceBuffer = ();
-pub type Shader = ();
-pub type Texture = ();
-pub type Instance = ();
+slotmap::new_key_type! {
+    pub struct VertexBuffer;
+    pub struct IndexBuffer;
+    pub struct InstanceBuffer;
+    pub struct Shader;
+    pub struct Texture;
+    pub struct Instance;
+}
 
 /// Context with which to change the rendering environment from within an App
-pub struct Context;
-
-impl Context {
-    pub fn vertices(&mut self, vertices: &[Vertex], dynamic: bool) -> Result<VertexBuffer> {
-        todo!()
-    }
-
-    pub fn indices(&mut self, indices: &[u32], dynamic: bool) -> Result<IndexBuffer> {
-        todo!()
-    }
-
-    pub fn instances(&mut self, instances: &[Instance], dynamic: bool) -> Result<InstanceBuffer> {
-        todo!()
-    }
-
-    pub fn shader(&mut self, vertex: &[u8], fragment: &[u8], primitive: Primitive) -> Result<Shader> {
-        todo!()
-    }
-
-    #[cfg(feature = "shaderc")]
-    pub fn shader_glsl(&mut self, vertex: &str, fragment: &str, primitive: Primitive) -> Result<Shader> {
-        todo!()
-    }
-
-    /// Create a new texture containing the specified data with the specified width. Data must be
-    /// 8-bit RGBA (4 bytes per pixel), and must be in row-major order.
-    pub fn texture(&mut self, data: &[u8], width: usize, dynamic: bool) -> Result<Texture> {
-        ensure!(data.len() % 4 == 0, "Image data must be RGBA");
-        let total_pixels = data.len() / 4;
-        ensure!(total_pixels % width == 0, "Image data length must be a multiple of width");
-        let image_height = total_pixels / width;
-        todo!()
-    }
-
-    pub fn screen_size(&self) -> (u32, u32) {
-        todo!()
-    }
-
-    pub fn update_vertices(&mut self, buffer: &mut VertexBuffer, vertices: &[Vertex]) -> Result<()> {
-        todo!()
-    }
-}
+pub type Context = engine::Engine;
