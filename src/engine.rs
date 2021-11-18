@@ -1,13 +1,13 @@
 use std::time::Instant;
 use slotmap::SlotMap;
-use watertender::{prelude::*, trivial::Primitive};
+use watertender::{prelude::*, trivial::Primitive, memory::UsageFlags};
 use anyhow::{Result, ensure};
 use watertender::defaults::FRAMES_IN_FLIGHT;
 use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture, VertexBuffer};
 
 /// Launch an App
 pub fn launch<A: App + 'static>(settings: crate::Settings) -> Result<()> {
-    let info = AppInfo::default().name(settings.name.clone())?;
+    let info = AppInfo::default().validation(true).name(settings.name.clone())?;
     watertender::starter_kit::launch::<EngineWrapper<A>, _>(info, settings.vr, settings)
 }
 
@@ -57,26 +57,58 @@ impl<A: App> SyncMainLoop<Settings> for EngineWrapper<A> {
     }
 }
 
-/// Wrapper to handle dynamic buffers with greater ease
-enum FrameKeyed<T> {
-    Singular(T),
-    Dynamic([T; FRAMES_IN_FLIGHT]),
+enum UploadBuffer {
+    Static(ManagedBuffer),
+    Dynamic(Vec<ManagedBuffer>),
 }
 
-impl<T> FrameKeyed<T> {
-    pub fn get(&self, frame: usize) -> &T {
+impl UploadBuffer {
+    /// Create a new buffer initialized with `data`.
+    pub fn new(core: &SharedCore, data: &[u8], dynamic: bool) -> Result<Self> {
+        let mut instance = Self::new_empty(core, data.len() as _, dynamic)?;
+        match &mut instance {
+            Self::Static(buf) => buf.write_bytes(0, data)?,
+            Self::Dynamic(bufs) => for buf in bufs {
+                buf.write_bytes(0, data)?;
+            }
+        }
+        Ok(instance)
+    }
+
+    /// Write to a dynamic buffer. Panics if the buffer is not dynamic
+    pub fn write(&mut self, frame: usize, data: &[u8]) -> Result<()> {
         match self {
-            FrameKeyed::Singular(v) => v,
-            FrameKeyed::Dynamic(v) => &v[frame],
+            Self::Static(buf) => panic!("Attempted to write to a static buffer"),
+            Self::Dynamic(bufs) => bufs[frame].write_bytes(0, data),
         }
     }
 
-    pub fn get_mut(&mut self, frame: usize) -> &mut T {
+    /// Get the internal buffer for the current frame
+    pub fn buffer(&self, frame: usize) -> vk::Buffer {
         match self {
-            FrameKeyed::Singular(v) => v,
-            FrameKeyed::Dynamic(v) => &mut v[frame],
+            Self::Static(buf) => buf.instance(),
+            Self::Dynamic(bufs) => bufs[frame].instance(),
         }
     }
+
+    pub fn new_empty(core: &SharedCore, size: u64, dynamic: bool) -> Result<Self> {
+         let ci = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::TRANSFER_SRC)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .queue_family_indices(&[])
+            .size(size);
+        let make_buf = || ManagedBuffer::new(core.clone(), ci, UsageFlags::UPLOAD);
+        Ok(match dynamic {
+            true => Self::Dynamic((0..FRAMES_IN_FLIGHT).map(|_| make_buf()).collect::<Result<_>>()?),
+            false => Self::Static(make_buf()?),
+        })
+    }
+}
+
+enum QueuedUpload {
+    VertexBuffer(VertexBuffer),
+    IndexBuffer(IndexBuffer),
+    Texture(Texture),
 }
 
 /// All data inside the scene UBO
@@ -92,12 +124,13 @@ unsafe impl bytemuck::Pod for SceneData {}
 
 /// The engine object. Also known as the "Context" from within usercode.
 pub struct Engine {
-    vertex_bufs: SlotMap<VertexBuffer, FrameKeyed<ManagedBuffer>>,
-    index_bufs: SlotMap<IndexBuffer, FrameKeyed<ManagedBuffer>>,
-    instance_bufs: SlotMap<InstanceBuffer, FrameKeyed<ManagedBuffer>>,
+    vertex_bufs: SlotMap<VertexBuffer, (ManagedBuffer, UploadBuffer)>,
+    index_bufs: SlotMap<IndexBuffer, (ManagedBuffer, UploadBuffer)>,
+    instance_bufs: SlotMap<InstanceBuffer, (ManagedBuffer, UploadBuffer)>,
     shaders: SlotMap<Shader, vk::Pipeline>,
-    textures: SlotMap<Texture, FrameKeyed<ManagedImage>>,
+    textures: SlotMap<Texture, (ManagedImage, UploadBuffer)>,
 
+    /// Trivial built-in shader
     default_shader_key: Shader,
 
     descriptor_sets: Vec<vk::DescriptorSet>,
@@ -111,6 +144,9 @@ pub struct Engine {
 
     camera_prefix: [f32; 4 * 4],
 
+    /// Uploads to be completed during the next frame
+    queued_uploads: Vec<QueuedUpload>,
+
     start_time: Instant,
 }
 
@@ -119,15 +155,20 @@ type Instance = (); // TODO
 // Public functions ("Context")
 impl Engine {
     pub fn vertices(&mut self, vertices: &[Vertex], dynamic: bool) -> Result<VertexBuffer> {
-        assert!(!dynamic);
-        // TODO: Think carefully about the sync here!!
-        let vertices = self.starter_kit.staging_buffer.upload_buffer_pod(
-            self.starter_kit.current_command_buffer(),
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-            vertices,
-        )?;
+        let ci = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .queue_family_indices(&[])
+            .size(std::mem::size_of_val(vertices) as _);
+        let buffer = ManagedBuffer::new(self.starter_kit.core.clone(), ci, UsageFlags::UPLOAD)?;
 
-        Ok(self.vertex_bufs.insert(FrameKeyed::Singular(vertices)))
+        let upload_buf = UploadBuffer::new(&self.starter_kit.core, bytemuck::cast_slice(vertices), dynamic)?;
+
+        let key = self.vertex_bufs.insert((buffer, upload_buf));
+
+        self.queued_uploads.push(QueuedUpload::VertexBuffer(key));
+
+        Ok(key)
     }
 
     pub fn indices(&mut self, indices: &[u32], dynamic: bool) -> Result<IndexBuffer> {
@@ -274,6 +315,8 @@ impl Engine {
 
             default_shader_key,
 
+            queued_uploads: vec![],
+
             descriptor_sets,
             descriptor_pool,
             descriptor_set_layout,
@@ -304,6 +347,28 @@ impl Engine {
         let command_buffer = cmd.command_buffer;
 
         unsafe {
+            // Upload buffers
+            for job in self.queued_uploads.drain(..) {
+                match job {
+                    QueuedUpload::VertexBuffer(key) => {
+                        let (buffer, upload_buf) = self.vertex_bufs.get_mut(key).unwrap();
+                        let region = vk::BufferCopyBuilder::new()
+                            .size(buffer.memory.as_ref().unwrap().size())
+                            .src_offset(0)
+                            .dst_offset(0);
+
+                        self.starter_kit.core.device.cmd_copy_buffer(
+                            command_buffer,
+                            upload_buf.buffer(self.starter_kit.frame),
+                            buffer.instance(),
+                            &[region],
+                        );
+                    }
+                    _ => todo!(),
+                }
+            }
+
+            // Bind UBO
             core.device.cmd_bind_descriptor_sets(
                 command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
@@ -313,6 +378,7 @@ impl Engine {
                 &[],
             );
 
+            // Draw frame packet
             for cmd in packet {
                 core.device.cmd_bind_pipeline(
                     command_buffer,
@@ -327,7 +393,7 @@ impl Engine {
                         .vertex_bufs
                         .get(cmd.vertices)
                         .unwrap()
-                        .get(self.starter_kit.frame)
+                        .0
                         .instance()
                     ],
                     &[0],
@@ -343,7 +409,18 @@ impl Engine {
             }
         }
 
-        let (ret, cameras) = watertender::multi_platform_camera::platform_camera_prefix(&platform, self.camera_prefix)?;
+        //let (ret, cameras) = watertender::multi_platform_camera::platform_camera_prefix(&platform, self.camera_prefix)?;
+        let (ret, cameras) = (PlatformReturn::Winit, [
+            1., 0., 0., 0., 
+            0., 1., 0., 0., 
+            0., 0., 1., 0., 
+            0., 0., 0., 1., 
+            //
+            1., 0., 0., 0., 
+            0., 1., 0., 0., 
+            0., 0., 1., 0., 
+            0., 0., 0., 1., 
+        ]);
 
         self.scene_ubo.upload(
             self.starter_kit.frame,
