@@ -96,7 +96,7 @@ impl UploadBuffer {
             .usage(vk::BufferUsageFlags::TRANSFER_SRC)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .queue_family_indices(&[])
-            .size(dbg!(size));
+            .size(size);
         let make_buf = || ManagedBuffer::new(core.clone(), ci, UsageFlags::UPLOAD);
         Ok(match dynamic {
             true => Self::Dynamic((0..FRAMES_IN_FLIGHT).map(|_| make_buf()).collect::<Result<_>>()?),
