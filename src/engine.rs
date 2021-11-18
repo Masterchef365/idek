@@ -17,10 +17,14 @@ struct EngineWrapper<A> {
     engine: Engine,
 }
 
+// Implement the MainLoop trait for the wrapper
 impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
     fn new(core: &SharedCore, platform: Platform<'_>, settings: Settings) -> Result<Self> {
+
         let mut engine = Engine::new(core, platform, settings)?;
+
         let app = A::init(&mut engine)?;
+
         Ok(Self {
             app,
             engine
@@ -33,7 +37,9 @@ impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
         core: &SharedCore,
         mut platform: Platform,
     ) -> Result<PlatformReturn> {
+
         let frame_packet = self.app.frame(&mut self.engine, &mut platform)?;
+
         self.engine.frame(frame_packet, frame, core, &mut platform)
     }
 
@@ -220,7 +226,9 @@ impl Engine {
 
     pub fn update_vertices(&mut self, handle: VertexBuffer, vertices: &[Vertex]) -> Result<()> {
         let memory = self.vertex_bufs.get_mut(handle).unwrap();
-        memory.cpu.write(self.starter_kit.frame, bytemuck::cast_slice(vertices))?;
+        let bytes = bytemuck::cast_slice(vertices);
+        //assert_eq!(bytes.len() as u64, memory.size, "Must write exactly as many vertices as the original buffer");
+        memory.cpu.write(self.starter_kit.frame, bytes)?;
         self.queued_uploads.push(QueuedUpload::VertexBuffer(handle));
         Ok(())
     }

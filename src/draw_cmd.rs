@@ -8,6 +8,10 @@ pub struct DrawCmd {
     pub texture: Option<Texture>,
     pub shader: Option<Shader>,
     pub transform: Option<Transform>,
+    /* /// If vertices have been defined:              Limit vertex drawing to this number
+    /// If indices and vertices have been defined:  Limit indexes used to this number
+    /// If neither vertices nor indices:            Draw this many vertices
+    pub limit: Option<u64>, */
 }
 
 impl DrawCmd {
