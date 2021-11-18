@@ -1,4 +1,4 @@
-use idek::prelude::*;
+use idek::{Platform, prelude::*};
 use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -34,7 +34,7 @@ impl App for TriangleApp {
         })
     }
 
-    fn frame(&mut self, ctx: &mut Context) -> Result<Vec<DrawCmd>> {
+    fn frame(&mut self, ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
         let mut mesh = TRIANGLE_MESH;
         mesh[0].pos = [self.time.elapsed().as_secs_f32().cos() * 0.3, 0.5, 0.];
         ctx.update_vertices(self.verts, &mesh)?;

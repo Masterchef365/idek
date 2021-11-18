@@ -1,11 +1,14 @@
-use anyhow::{Result, ensure};
+use anyhow::Result;
 mod draw_cmd;
 mod engine;
 pub use engine::launch;
 pub use draw_cmd::DrawCmd;
 pub use watertender::vertex::Vertex;
-pub use watertender::mainloop::PlatformEvent as Event;
+pub use watertender::mainloop::{PlatformEvent as Event, Platform};
 pub use watertender::trivial::Primitive;
+
+pub use watertender::winit;
+pub use watertender::openxr;
 
 /// Commonly used items
 pub mod prelude {
@@ -41,10 +44,17 @@ pub trait App: Sized {
     fn init(ctx: &mut Context) -> Result<Self>;
 
     /// Called once per frame. Most app logic should live here.
-    fn frame(&mut self, ctx: &mut Context) -> Result<Vec<DrawCmd>>;
+    fn frame(&mut self, ctx: &mut Context, platform: &mut Platform) -> Result<Vec<DrawCmd>>;
 
     /// Called once per event
-    fn event(&mut self, _event: Event) {
+    fn event(&mut self, event: Event, platform: &mut Platform) {
+        match (event, platform) {
+            (
+                Event::Winit(winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. }),
+                Platform::Winit { control_flow, .. }
+            ) => **control_flow = winit::event_loop::ControlFlow::Exit,
+            _ => (),
+        }
     }
 }
 

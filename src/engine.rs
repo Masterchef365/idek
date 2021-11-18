@@ -31,10 +31,10 @@ impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
         &mut self,
         frame: Frame,
         core: &SharedCore,
-        platform: Platform<'_>,
+        mut platform: Platform,
     ) -> Result<PlatformReturn> {
-        let frame_packet = self.app.frame(&mut self.engine)?;
-        self.engine.frame(frame_packet, frame, core, platform)
+        let frame_packet = self.app.frame(&mut self.engine, &mut platform)?;
+        self.engine.frame(frame_packet, frame, core, &mut platform)
     }
 
     fn swapchain_resize(&mut self, images: Vec<vk::Image>, extent: vk::Extent2D) -> Result<()> {
@@ -45,9 +45,9 @@ impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
         &mut self,
         event: PlatformEvent<'_, '_>,
         _core: &Core,
-        _platform: Platform<'_>,
+        mut platform: Platform,
     ) -> Result<()> {
-        Ok(self.app.event(event))
+        Ok(self.app.event(event, &mut platform))
     }
 }
 
@@ -366,7 +366,7 @@ impl Engine {
         packet: Vec<DrawCmd>,
         frame: Frame,
         core: &SharedCore,
-        _platform: Platform<'_>,
+        _platform: &mut Platform,
     ) -> Result<PlatformReturn> {
         let cmd = self.starter_kit.begin_command_buffer(&frame)?;
         let command_buffer = cmd.command_buffer;
