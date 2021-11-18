@@ -1,6 +1,6 @@
 use std::time::Instant;
 use slotmap::SlotMap;
-use watertender::{prelude::*, trivial::Primitive, memory::UsageFlags};
+use watertender::{memory::UsageFlags, prelude::*, trivial::Primitive, vk::{CommandBuffer, CommandBufferAllocateInfoBuilder}};
 use anyhow::{Result, ensure};
 use watertender::defaults::FRAMES_IN_FLIGHT;
 use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture, VertexBuffer};
@@ -86,8 +86,8 @@ impl UploadBuffer {
     /// Get the internal buffer for the current frame
     pub fn buffer(&self, frame: usize) -> vk::Buffer {
         match self {
-            Self::Static(buf) => buf.instance(),
-            Self::Dynamic(bufs) => bufs[frame].instance(),
+            Self::Static(buf) => buf.buffer(),
+            Self::Dynamic(bufs) => bufs[frame].buffer(),
         }
     }
 
@@ -96,7 +96,7 @@ impl UploadBuffer {
             .usage(vk::BufferUsageFlags::TRANSFER_SRC)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .queue_family_indices(&[])
-            .size(size);
+            .size(dbg!(size));
         let make_buf = || ManagedBuffer::new(core.clone(), ci, UsageFlags::UPLOAD);
         Ok(match dynamic {
             true => Self::Dynamic((0..FRAMES_IN_FLIGHT).map(|_| make_buf()).collect::<Result<_>>()?),
@@ -122,11 +122,21 @@ struct SceneData {
 unsafe impl bytemuck::Zeroable for SceneData {}
 unsafe impl bytemuck::Pod for SceneData {}
 
+/// CPU-GPU synchronized memory. Might be dynamic.
+struct SyncMemory {
+    /// GPU-side memory (FAST_DEVICE_ACCESS)
+    gpu: ManagedBuffer,
+    /// CPU-side memory (UPLOAD)
+    cpu: UploadBuffer,
+    /// Length in bytes
+    size: u64,
+}
+
 /// The engine object. Also known as the "Context" from within usercode.
 pub struct Engine {
-    vertex_bufs: SlotMap<VertexBuffer, (ManagedBuffer, UploadBuffer)>,
-    index_bufs: SlotMap<IndexBuffer, (ManagedBuffer, UploadBuffer)>,
-    instance_bufs: SlotMap<InstanceBuffer, (ManagedBuffer, UploadBuffer)>,
+    vertex_bufs: SlotMap<VertexBuffer, SyncMemory>,
+    index_bufs: SlotMap<IndexBuffer, SyncMemory>,
+    instance_bufs: SlotMap<InstanceBuffer, SyncMemory>,
     shaders: SlotMap<Shader, vk::Pipeline>,
     textures: SlotMap<Texture, (ManagedImage, UploadBuffer)>,
 
@@ -155,16 +165,22 @@ type Instance = (); // TODO
 // Public functions ("Context")
 impl Engine {
     pub fn vertices(&mut self, vertices: &[Vertex], dynamic: bool) -> Result<VertexBuffer> {
+        let size = std::mem::size_of_val(vertices) as u64;
         let ci = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .queue_family_indices(&[])
-            .size(std::mem::size_of_val(vertices) as _);
-        let buffer = ManagedBuffer::new(self.starter_kit.core.clone(), ci, UsageFlags::UPLOAD)?;
+            .size(size);
+
+        let gpu_buf = ManagedBuffer::new(self.starter_kit.core.clone(), ci, UsageFlags::FAST_DEVICE_ACCESS)?;
 
         let upload_buf = UploadBuffer::new(&self.starter_kit.core, bytemuck::cast_slice(vertices), dynamic)?;
 
-        let key = self.vertex_bufs.insert((buffer, upload_buf));
+        let key = self.vertex_bufs.insert(SyncMemory {
+            cpu: upload_buf,
+            gpu: gpu_buf,
+            size,
+        });
 
         self.queued_uploads.push(QueuedUpload::VertexBuffer(key));
 
@@ -202,11 +218,20 @@ impl Engine {
         todo!()
     }
 
-    pub fn update_vertices(&mut self, buffer: VertexBuffer, vertices: &[Vertex]) -> Result<()> {
-        todo!()
+    pub fn update_vertices(&mut self, handle: VertexBuffer, vertices: &[Vertex]) -> Result<()> {
+        let memory = self.vertex_bufs.get_mut(handle).unwrap();
+        memory.cpu.write(self.starter_kit.frame, bytemuck::cast_slice(vertices))?;
+        self.queued_uploads.push(QueuedUpload::VertexBuffer(handle));
+        Ok(())
     }
 
-    pub fn update_indices(&mut self, buffer: VertexBuffer, vertices: &[u32]) -> Result<()> {
+    pub fn update_indices(&mut self, handle: IndexBuffer, indices: &[u32]) -> Result<()> {
+        /*
+        let (_, upload_buffer) = self.index_bufs.get_mut(handle).unwrap();
+        upload_buffer.write(self.starter_kit.frame, bytemuck::cast_slice(indices))?;
+        self.queued_uploads.push(QueuedUpload::IndexBuffer(handle));
+        Ok(())
+        */
         todo!()
     }
 }
@@ -341,9 +366,9 @@ impl Engine {
         packet: Vec<DrawCmd>,
         frame: Frame,
         core: &SharedCore,
-        platform: Platform<'_>,
+        _platform: Platform<'_>,
     ) -> Result<PlatformReturn> {
-        let cmd = self.starter_kit.begin_command_buffer(frame)?;
+        let cmd = self.starter_kit.begin_command_buffer(&frame)?;
         let command_buffer = cmd.command_buffer;
 
         unsafe {
@@ -351,22 +376,15 @@ impl Engine {
             for job in self.queued_uploads.drain(..) {
                 match job {
                     QueuedUpload::VertexBuffer(key) => {
-                        let (buffer, upload_buf) = self.vertex_bufs.get_mut(key).unwrap();
-                        let region = vk::BufferCopyBuilder::new()
-                            .size(buffer.memory.as_ref().unwrap().size())
-                            .src_offset(0)
-                            .dst_offset(0);
-
-                        self.starter_kit.core.device.cmd_copy_buffer(
-                            command_buffer,
-                            upload_buf.buffer(self.starter_kit.frame),
-                            buffer.instance(),
-                            &[region],
-                        );
+                        let memory = self.vertex_bufs.get(key).unwrap();
+                        write_cpu_gpu_copy(&self.starter_kit.core, command_buffer, memory, self.starter_kit.frame);
                     }
                     _ => todo!(),
                 }
             }
+
+            self.starter_kit.begin_render_pass(&frame);
+            self.starter_kit.set_viewport();
 
             // Bind UBO
             core.device.cmd_bind_descriptor_sets(
@@ -393,8 +411,8 @@ impl Engine {
                         .vertex_bufs
                         .get(cmd.vertices)
                         .unwrap()
-                        .0
-                        .instance()
+                        .gpu
+                        .buffer()
                     ],
                     &[0],
                 );
@@ -443,5 +461,21 @@ impl Engine {
 
     fn winit_sync(&self) -> (vk::Semaphore, vk::Semaphore) {
         self.starter_kit.winit_sync()
+    }
+}
+
+fn write_cpu_gpu_copy(core: &Core, command_buffer: CommandBuffer, memory: &SyncMemory, frame: usize) {
+    let region = vk::BufferCopyBuilder::new()
+        .size(memory.size)
+        .src_offset(0)
+        .dst_offset(0);
+
+    unsafe {
+        core.device.cmd_copy_buffer(
+            command_buffer,
+            memory.cpu.buffer(frame),
+            memory.gpu.buffer(),
+            &[region],
+        )
     }
 }
