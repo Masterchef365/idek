@@ -48,7 +48,7 @@ impl App for TriangleApp {
         mut event: Event,
     ) -> Result<()> {
         if self.camera.handle_event(&mut event) {
-            ctx.set_camera_prefix(self.camera.get_prefix(platform))
+            ctx.set_camera_prefix(self.camera.get_prefix())
         }
         idek::close_when_asked(platform, &event);
         Ok(())
