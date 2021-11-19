@@ -1,30 +1,33 @@
-
 #version 450
-#extension GL_ARB_separate_shader_objects : enable
 #extension GL_EXT_multiview : require
 
-layout(binding = 0) uniform Animation {
+// Per-frame UBO
+layout(binding = 0) uniform PerFrame {
     mat4 camera[2];
     float anim;
 };
 
-/*
-layout(binding = 0) uniform CameraUbo {
+// Model matrices
+layout(binding = 1) buffer Models {
+    mat4 model_mats[];
 };
 
-layout(push_constant) uniform Model {
-    mat4 model;
+// Resource indices
+layout(push_constant) uniform Indices {
+    uint model_index;
 };
-*/
 
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inColor;
+// Vertex data
+layout(location = 0) in vec3 vert_pos;
+layout(location = 1) in vec3 vert_color;
 
-layout(location = 0) out vec3 fragColor;
+// Fragment outputs
+layout(location = 0) out vec3 frag_color;
 
 void main() {
-    //gl_Position = camera[gl_ViewIndex] * model * vec4(inPosition, 1.0);
-    gl_Position = camera[gl_ViewIndex] * vec4(inPosition, 1.0);
-    fragColor = inColor;
+    gl_Position = camera[gl_ViewIndex]
+        * model_mats[model_index]
+        * vec4(vert_pos, 1.0);
+    frag_color = vert_color;
 }
 

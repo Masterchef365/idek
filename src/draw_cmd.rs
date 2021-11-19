@@ -1,6 +1,7 @@
 use crate::*;
 
 /// A draw command, flexibly represents a number of different drawing
+#[derive(Copy, Clone)]
 pub struct DrawCmd {
     pub vertices: VertexBuffer,
     pub instances: Option<InstanceBuffer>,

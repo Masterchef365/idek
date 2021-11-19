@@ -31,6 +31,9 @@ pub struct Settings {
 
     /// Application name
     pub name: String,
+
+    /// Maximum number of transforms able to be used at once
+    pub max_transforms: usize,
 }
 
 impl Default for Settings {
@@ -39,6 +42,7 @@ impl Default for Settings {
             msaa_samples: 4,
             vr: false,
             name: "Idek".to_string(),
+            max_transforms: 10_000,
         }
     }
 }
@@ -59,6 +63,12 @@ impl Settings {
     /// Enable VR if there are any command line arguments
     pub fn vr_if_any_args(mut self) -> Self {
         self.vr = std::env::args().skip(1).next().is_some();
+        self
+    }
+
+    /// Enable VR if there are any command line arguments
+    pub fn max_transforms(mut self, max_transforms: usize) -> Self {
+        self.max_transforms = max_transforms;
         self
     }
 }
@@ -92,7 +102,7 @@ pub fn close_when_asked(platform: &mut Platform, event: &Event) {
 }
 
 /// A transform array in row-major order
-pub type Transform = [f32; 4 * 4];
+pub type Transform = [[f32; 4]; 4];
 
 slotmap::new_key_type! {
     pub struct VertexBuffer;

@@ -10,6 +10,15 @@ use watertender::{
     trivial::Primitive,
     vk::{CommandBuffer, CommandBufferAllocateInfoBuilder},
 };
+use crate::Transform;
+
+pub const TRANSFORM_IDENTITY: Transform = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
+
 
 /// Launch an App
 pub fn launch<A: App + 'static>(settings: crate::Settings) -> Result<()> {
@@ -169,6 +178,8 @@ pub struct Engine {
     scene_ubo: FrameDataUbo<SceneData>,
     starter_kit: StarterKit,
 
+    transforms: Vec<ManagedBuffer>,
+
     camera_prefix: Matrix4<f32>,
 
     /// Uploads to be completed during the next frame
@@ -288,6 +299,10 @@ impl Engine {
         (extent.width, extent.height)
     }
 
+    pub fn start_time(&self) -> Instant {
+        self.start_time
+    }
+
     /// Set the camera prefix. This transformation is applied to each vertex. In the OpenXR backend,
     /// this is applied before the camera view and projection matrices
     pub fn set_camera_prefix(&mut self, matrix: Matrix4<f32>) {
@@ -313,21 +328,44 @@ impl Engine {
     }
 }
 
+fn create_transform_buffers(core: &SharedCore, max_transforms: usize) -> Result<Vec<ManagedBuffer>> {
+    let total_size = std::mem::size_of::<Transform>() * max_transforms;
+        let ci = vk::BufferCreateInfoBuilder::new()
+            .size(total_size as u64)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .usage(vk::BufferUsageFlags::STORAGE_BUFFER);
+        (0..FRAMES_IN_FLIGHT)
+            .map(|_| ManagedBuffer::new(core.clone(), ci, watertender::memory::UsageFlags::UPLOAD))
+            .collect::<Result<Vec<_>>>()
+}
+
 impl Engine {
-    fn new(core: &SharedCore, platform: &mut Platform<'_>, _settings: Settings) -> Result<Self> {
+    fn new(core: &SharedCore, platform: &mut Platform<'_>, settings: Settings) -> Result<Self> {
         // Boilerplate
         let starter_kit = StarterKit::new(core.clone(), platform)?;
 
         // Scene UBO
         let scene_ubo = FrameDataUbo::new(core.clone(), FRAMES_IN_FLIGHT)?;
 
+        // Transforms data
+        // TODO: Auto-resize! (Use a deletion queue)
+        let transforms = create_transform_buffers(core, settings.max_transforms)?;
+
         // Create descriptor set layout
         const FRAME_DATA_BINDING: u32 = 0;
-        let bindings = [vk::DescriptorSetLayoutBindingBuilder::new()
-            .binding(FRAME_DATA_BINDING)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::ALL_GRAPHICS)];
+        const TRANSFORM_BINDING: u32 = 1;
+        let bindings = [
+            vk::DescriptorSetLayoutBindingBuilder::new()
+                .binding(FRAME_DATA_BINDING)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::ALL_GRAPHICS),
+            vk::DescriptorSetLayoutBindingBuilder::new()
+                .binding(TRANSFORM_BINDING)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::ALL_GRAPHICS),
+        ];
 
         let descriptor_set_layout_ci =
             vk::DescriptorSetLayoutCreateInfoBuilder::new().bindings(&bindings);
@@ -339,9 +377,14 @@ impl Engine {
         .result()?;
 
         // Create descriptor pool
-        let pool_sizes = [vk::DescriptorPoolSizeBuilder::new()
-            ._type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(FRAMES_IN_FLIGHT as _)];
+        let pool_sizes = [
+            vk::DescriptorPoolSizeBuilder::new()
+                ._type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(FRAMES_IN_FLIGHT as _),
+            vk::DescriptorPoolSizeBuilder::new()
+                ._type(vk::DescriptorType::STORAGE_BUFFER)
+                .descriptor_count(FRAMES_IN_FLIGHT as _),
+        ];
 
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
@@ -362,13 +405,25 @@ impl Engine {
         // Write descriptor sets
         for (frame, &descriptor_set) in descriptor_sets.iter().enumerate() {
             let frame_data_bi = [scene_ubo.descriptor_buffer_info(frame)];
-            let writes = [vk::WriteDescriptorSetBuilder::new()
-                .buffer_info(&frame_data_bi)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .dst_set(descriptor_set)
-                .dst_binding(FRAME_DATA_BINDING)
-                .dst_array_element(0)];
+            let transform_bi = [vk::DescriptorBufferInfoBuilder::new()
+                .buffer(transforms[frame].buffer())
+                .offset(0)
+                .range(vk::WHOLE_SIZE)];
 
+            let writes = [
+                vk::WriteDescriptorSetBuilder::new()
+                    .buffer_info(&frame_data_bi)
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .dst_set(descriptor_set)
+                    .dst_binding(FRAME_DATA_BINDING)
+                    .dst_array_element(0),
+                vk::WriteDescriptorSetBuilder::new()
+                    .buffer_info(&transform_bi)
+                    .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                    .dst_set(descriptor_set)
+                    .dst_binding(TRANSFORM_BINDING)
+                    .dst_array_element(0),
+            ];
             unsafe {
                 core.device.update_descriptor_sets(&writes, &[]);
             }
@@ -380,7 +435,7 @@ impl Engine {
         let push_constant_ranges = [vk::PushConstantRangeBuilder::new()
             .stage_flags(vk::ShaderStageFlags::VERTEX)
             .offset(0)
-            .size(std::mem::size_of::<[f32; 4 * 4]>() as u32)];
+            .size(std::mem::size_of::<u32>() as u32)];
 
         let create_info = vk::PipelineLayoutCreateInfoBuilder::new()
             .push_constant_ranges(&push_constant_ranges)
@@ -410,6 +465,8 @@ impl Engine {
             textures: SlotMap::with_key(),
 
             default_shader_key,
+
+            transforms,
 
             queued_uploads: vec![],
 
@@ -476,8 +533,11 @@ impl Engine {
                 &[],
             );
 
+            let mut transforms = vec![TRANSFORM_IDENTITY];
+
             // Draw frame packet
             for cmd in packet {
+                // Bind current shader, or default if None
                 core.device.cmd_bind_pipeline(
                     command_buffer,
                     vk::PipelineBindPoint::GRAPHICS,
@@ -487,8 +547,29 @@ impl Engine {
                         .unwrap(),
                 );
 
-                let vertex_memory = self.vertex_bufs.get(cmd.vertices).unwrap();
+                // Add transform to the buffer if present; otherwise use the default (identity) transform.
+                let transform_index;
+                match cmd.transform {
+                    Some(transform) => {
+                        transform_index = transforms.len() as u32;
+                        transforms.push(transform);
+                    }
+                    None => transform_index = 0,
+                };
 
+                // Transform index is conveyed via push constant
+                let push_const = [transform_index];
+                core.device.cmd_push_constants(
+                    command_buffer,
+                    self.pipeline_layout,
+                    vk::ShaderStageFlags::VERTEX,
+                    0,
+                    std::mem::size_of_val(&push_const) as u32,
+                    push_const.as_ptr() as _,
+                );
+
+                // Bind vertex buffers
+                let vertex_memory = self.vertex_bufs.get(cmd.vertices).unwrap();
                 core.device.cmd_bind_vertex_buffers(
                     command_buffer,
                     0,
@@ -496,6 +577,7 @@ impl Engine {
                     &[0],
                 );
 
+                // Draw indexed if there are indices, otherwise draw only by vertex order
                 if let Some(indices) = cmd.indices {
                     let index_memory = self.index_bufs.get(indices).unwrap();
                     core.device.cmd_bind_index_buffer(
@@ -514,6 +596,13 @@ impl Engine {
                         .cmd_draw(command_buffer, n_vertices, 1, 0, 0);
                 }
             }
+
+            // Write transforms data
+            let bytes = bytemuck::cast_slice(&transforms);
+            let frame = self.starter_kit.frame;
+            let buffer = &mut self.transforms[frame];
+            ensure!((bytes.len() as u64) < buffer.memory.as_ref().unwrap().size(), "Maximum transforms exceeded");
+            buffer.write_bytes(0, bytes)?;
         }
 
         let (ret, cameras) = watertender::multi_platform_camera::platform_camera_prefix(
