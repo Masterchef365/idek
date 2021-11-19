@@ -42,7 +42,7 @@ impl App for TriangleApp {
         Ok(Self { verts, indices })
     }
 
-    fn frame(&mut self, ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
+    fn frame(&mut self, _ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
         Ok(vec![DrawCmd::new(self.verts).indices(self.indices)])
     }
 }

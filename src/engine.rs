@@ -84,7 +84,7 @@ impl UploadBuffer {
     /// Write to a dynamic buffer. Panics if the buffer is not dynamic
     pub fn write(&mut self, frame: usize, data: &[u8]) -> Result<()> {
         match self {
-            Self::Static(buf) => panic!("Attempted to write to a static buffer"),
+            Self::Static(_) => panic!("Attempted to write to a static buffer"),
             Self::Dynamic(bufs) => bufs[frame].write_bytes(0, data),
         }
     }
@@ -279,7 +279,7 @@ impl Engine {
 }
 
 impl Engine {
-    fn new(core: &SharedCore, platform: &mut Platform<'_>, settings: Settings) -> Result<Self> {
+    fn new(core: &SharedCore, platform: &mut Platform<'_>, _settings: Settings) -> Result<Self> {
         // Boilerplate
         let starter_kit = StarterKit::new(core.clone(), platform)?;
 
@@ -528,5 +528,16 @@ fn write_cpu_gpu_copy(core: &Core, command_buffer: CommandBuffer, memory: &SyncM
             memory.gpu.buffer(),
             &[region],
         )
+    }
+}
+
+impl Drop for Engine {
+    fn drop(&mut self) {
+        unsafe {
+            let core = &self.starter_kit.core;
+            core.device.device_wait_idle();
+            core.device.destroy_descriptor_pool(Some(self.descriptor_pool), None);
+            core.device.destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
+        }
     }
 }
