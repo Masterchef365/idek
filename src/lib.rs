@@ -5,6 +5,7 @@ pub use draw_cmd::DrawCmd;
 pub use engine::launch;
 pub use watertender::mainloop::{Platform, PlatformEvent as Event};
 pub use watertender::multi_platform_camera::MultiPlatformCamera;
+use watertender::nalgebra::{Matrix4, Vector4};
 pub use watertender::trivial::Primitive;
 pub use watertender::vertex::Vertex;
 pub use watertender::winit_arcball::WinitArcBall;
@@ -118,3 +119,20 @@ slotmap::new_key_type! {
 
 /// Context with which to change the rendering environment from within an App
 pub type Context = engine::Engine;
+
+/// Return a camera prefix matrix which keeps (-1, 1) on XY visible and at a 1:1 aspect ratio
+pub fn simple_ortho_cam((width, height): (u32, u32)) -> Matrix4<f32> {
+    let (width, height) = (width as f32, height as f32);
+    let diag = match width < height {
+        true => Vector4::new(1., width / height, 1., 1.),
+        false => Vector4::new(height / width, 1., 1., 1.),
+    };
+    Matrix4::from_diagonal(&diag)
+}
+
+/// Same as `simple_ortho_cam` but using the builtin inputs
+pub fn simple_ortho_cam_ctx(ctx: &mut Context, platform: &mut Platform) {
+    if !platform.is_vr() {
+        ctx.set_camera_prefix(simple_ortho_cam(ctx.screen_size()));
+    }
+}
