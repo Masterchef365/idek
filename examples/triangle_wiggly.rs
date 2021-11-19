@@ -35,17 +35,7 @@ impl App for TriangleApp {
     }
 
     fn frame(&mut self, ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
-        let mut mesh = vec![];
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
-        mesh.extend_from_slice(&TRIANGLE_MESH);
+        let mut mesh = TRIANGLE_MESH;
         let time = self.time.elapsed().as_secs_f32();
         mesh[0].pos = [time.cos() * 0.3, 0.5, 0.];
         ctx.update_vertices(self.verts, &mesh)?;

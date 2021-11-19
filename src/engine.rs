@@ -7,7 +7,7 @@ use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture
 
 /// Launch an App
 pub fn launch<A: App + 'static>(settings: crate::Settings) -> Result<()> {
-    let info = AppInfo::default().validation(true).name(settings.name.clone())?;
+    let info = AppInfo::default().validation(cfg!(debug_assertions)).name(settings.name.clone())?;
     watertender::starter_kit::launch::<EngineWrapper<A>, _>(info, settings.vr, settings)
 }
 
@@ -134,8 +134,10 @@ struct SyncMemory {
     gpu: ManagedBuffer,
     /// CPU-side memory (UPLOAD)
     cpu: UploadBuffer,
-    /// Length in bytes
-    size: u64,
+    /// Size in bytes
+    size_bytes: u64,
+    /// Length (# of vertices, indices, instances)
+    length: u32,
 }
 
 /// The engine object. Also known as the "Context" from within usercode.
@@ -171,12 +173,12 @@ type Instance = (); // TODO
 // Public functions ("Context")
 impl Engine {
     pub fn vertices(&mut self, vertices: &[Vertex], dynamic: bool) -> Result<VertexBuffer> {
-        let size = std::mem::size_of_val(vertices) as u64;
+        let size_bytes = std::mem::size_of_val(vertices) as u64;
         let ci = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .queue_family_indices(&[])
-            .size(size);
+            .size(size_bytes);
 
         let gpu_buf = ManagedBuffer::new(self.starter_kit.core.clone(), ci, UsageFlags::FAST_DEVICE_ACCESS)?;
 
@@ -185,7 +187,8 @@ impl Engine {
         let key = self.vertex_bufs.insert(SyncMemory {
             cpu: upload_buf,
             gpu: gpu_buf,
-            size,
+            size_bytes,
+            length: vertices.len() as _,
         });
 
         self.queued_uploads.push(QueuedUpload::VertexBuffer(key));
@@ -194,12 +197,32 @@ impl Engine {
     }
 
     pub fn indices(&mut self, indices: &[u32], dynamic: bool) -> Result<IndexBuffer> {
-        todo!()
+        let size_bytes = std::mem::size_of_val(indices) as u64;
+        let ci = vk::BufferCreateInfoBuilder::new()
+            .usage(vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .queue_family_indices(&[])
+            .size(size_bytes);
+
+        let gpu_buf = ManagedBuffer::new(self.starter_kit.core.clone(), ci, UsageFlags::FAST_DEVICE_ACCESS)?;
+
+        let upload_buf = UploadBuffer::new(&self.starter_kit.core, bytemuck::cast_slice(indices), dynamic)?;
+
+        let key = self.index_bufs.insert(SyncMemory {
+            cpu: upload_buf,
+            gpu: gpu_buf,
+            size_bytes,
+            length: indices.len() as _,
+        });
+
+        self.queued_uploads.push(QueuedUpload::IndexBuffer(key));
+
+        Ok(key)
     }
 
-    pub fn instances(&mut self, instances: &[Instance], dynamic: bool) -> Result<InstanceBuffer> {
+    /*pub fn instances(&mut self, instances: &[Instance], dynamic: bool) -> Result<InstanceBuffer> {
         todo!()
-    }
+    }*/
 
     pub fn shader(&mut self, vertex: &[u8], fragment: &[u8], primitive: Primitive) -> Result<Shader> {
         todo!()
@@ -246,13 +269,12 @@ impl Engine {
     }
 
     pub fn update_indices(&mut self, handle: IndexBuffer, indices: &[u32]) -> Result<()> {
-        /*
-        let (_, upload_buffer) = self.index_bufs.get_mut(handle).unwrap();
-        upload_buffer.write(self.starter_kit.frame, bytemuck::cast_slice(indices))?;
+        let memory = self.index_bufs.get_mut(handle).unwrap();
+        let bytes = bytemuck::cast_slice(indices);
+        //assert_eq!(bytes.len() as u64, memory.size, "Must write exactly as many vertices as the original buffer");
+        memory.cpu.write(self.starter_kit.frame, bytes)?;
         self.queued_uploads.push(QueuedUpload::IndexBuffer(handle));
         Ok(())
-        */
-        todo!()
     }
 }
 
@@ -394,6 +416,10 @@ impl Engine {
                         let memory = self.vertex_bufs.get(key).unwrap();
                         write_cpu_gpu_copy(&self.starter_kit.core, command_buffer, memory, self.starter_kit.frame);
                     }
+                    QueuedUpload::IndexBuffer(key) => {
+                        let memory = self.index_bufs.get(key).unwrap();
+                        write_cpu_gpu_copy(&self.starter_kit.core, command_buffer, memory, self.starter_kit.frame);
+                    }
                     _ => todo!(),
                 }
             }
@@ -419,26 +445,47 @@ impl Engine {
                     *self.shaders.get(cmd.shader.unwrap_or(self.default_shader_key)).unwrap()
                 );
 
+                let vertex_memory = self
+                    .vertex_bufs
+                    .get(cmd.vertices)
+                    .unwrap();
+
                 core.device.cmd_bind_vertex_buffers(
                     command_buffer,
                     0,
-                    &[self
-                        .vertex_bufs
-                        .get(cmd.vertices)
-                        .unwrap()
+                    &[vertex_memory
                         .gpu
                         .buffer()
                     ],
                     &[0],
                 );
 
-                core.device.cmd_draw(
-                    command_buffer,
-                    3,
-                    1,
-                    0,
-                    0
-                );
+                if let Some(indices) = cmd.indices {
+                    let index_memory = self
+                        .index_bufs
+                        .get(indices)
+                        .unwrap();
+                    core.device.cmd_bind_index_buffer(
+                        command_buffer,
+                        index_memory.gpu.buffer(),
+                        0,
+                        vk::IndexType::UINT32
+                    );
+
+                    core.device.cmd_draw_indexed(
+                        command_buffer, 
+                        index_memory.length, 
+                        1, 0, 0, 0
+                    )
+                } else {
+                    core.device.cmd_draw(
+                        command_buffer,
+                        vertex_memory.length,
+                        1,
+                        0,
+                        0
+                    );
+                }
             }
         }
 
@@ -470,7 +517,7 @@ impl Engine {
 
 fn write_cpu_gpu_copy(core: &Core, command_buffer: CommandBuffer, memory: &SyncMemory, frame: usize) {
     let region = vk::BufferCopyBuilder::new()
-        .size(memory.size)
+        .size(memory.size_bytes)
         .src_offset(0)
         .dst_offset(0);
 
