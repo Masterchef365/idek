@@ -6,6 +6,8 @@ pub use draw_cmd::DrawCmd;
 pub use watertender::vertex::Vertex;
 pub use watertender::mainloop::{PlatformEvent as Event, Platform};
 pub use watertender::trivial::Primitive;
+pub use watertender::winit_arcball::WinitArcBall;
+pub use watertender::multi_platform_camera::MultiPlatformCamera;
 
 pub use watertender::winit;
 pub use watertender::openxr;
@@ -68,15 +70,19 @@ pub trait App: Sized {
     fn frame(&mut self, ctx: &mut Context, platform: &mut Platform) -> Result<Vec<DrawCmd>>;
 
     /// Called once per event
-    fn event(&mut self, event: Event, platform: &mut Platform) {
-        // Exit when asked to
-        match (event, platform) {
-            (
-                Event::Winit(winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. }),
-                Platform::Winit { control_flow, .. }
-            ) => **control_flow = winit::event_loop::ControlFlow::Exit,
-            _ => (),
-        }
+    fn event(&mut self, _ctx: &mut Context, platform: &mut Platform, event: Event) -> Result<()> {
+        Ok(close_when_asked(platform, &event))
+    }
+}
+
+/// Close the winit window when asked
+pub fn close_when_asked(platform: &mut Platform, event: &Event) {
+    match (event, platform) {
+        (
+            Event::Winit(winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. }),
+            Platform::Winit { control_flow, .. }
+        ) => **control_flow = winit::event_loop::ControlFlow::Exit,
+        _ => (),
     }
 }
 

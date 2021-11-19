@@ -53,7 +53,7 @@ impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
         _core: &Core,
         mut platform: Platform,
     ) -> Result<()> {
-        Ok(self.app.event(event, &mut platform))
+        self.app.event(&mut self.engine, &mut platform, event)
     }
 }
 
@@ -535,7 +535,7 @@ impl Drop for Engine {
     fn drop(&mut self) {
         unsafe {
             let core = &self.starter_kit.core;
-            core.device.device_wait_idle();
+            core.device.device_wait_idle().expect("Failed to idle the device");
             core.device.destroy_descriptor_pool(Some(self.descriptor_pool), None);
             core.device.destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
         }
