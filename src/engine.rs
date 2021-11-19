@@ -1,4 +1,4 @@
-use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture, VertexBuffer, };
+use crate::{App, DrawCmd, IndexBuffer, Settings, Shader, VertexBuffer};
 use anyhow::{ensure, Result};
 use slotmap::SlotMap;
 use std::time::Instant;
@@ -132,7 +132,7 @@ impl UploadBuffer {
 enum QueuedUpload {
     VertexBuffer(VertexBuffer),
     IndexBuffer(IndexBuffer),
-    Texture(Texture),
+    //Texture(Texture),
 }
 
 /// All data inside the scene UBO
@@ -162,9 +162,9 @@ struct SyncMemory {
 pub struct Engine {
     vertex_bufs: SlotMap<VertexBuffer, SyncMemory>,
     index_bufs: SlotMap<IndexBuffer, SyncMemory>,
-    instance_bufs: SlotMap<InstanceBuffer, SyncMemory>,
+    //instance_bufs: SlotMap<InstanceBuffer, SyncMemory>,
     shaders: SlotMap<Shader, vk::Pipeline>,
-    textures: SlotMap<Texture, (ManagedImage, UploadBuffer)>,
+    //textures: SlotMap<Texture, (ManagedImage, UploadBuffer)>,
 
     /// Trivial built-in shader
     default_shader_key: Shader,
@@ -188,7 +188,7 @@ pub struct Engine {
     start_time: Instant,
 }
 
-type Instance = (); // TODO
+// type Instance = ();
 
 // Public functions ("Context")
 impl Engine {
@@ -286,6 +286,7 @@ impl Engine {
         todo!()
     }
 
+    /*
     /// Create a new texture containing the specified data with the specified width. Data must be
     /// 8-bit RGBA (4 bytes per pixel), and must be in row-major order.
     pub fn texture(&mut self, data: &[u8], width: usize, dynamic: bool) -> Result<Texture> {
@@ -298,6 +299,7 @@ impl Engine {
         let image_height = total_pixels / width;
         todo!()
     }
+    */
 
     /// Returns the current screen size in pixels
     /// (width, height)
@@ -468,8 +470,8 @@ impl Engine {
             shaders,
             vertex_bufs: SlotMap::with_key(),
             index_bufs: SlotMap::with_key(),
-            instance_bufs: SlotMap::with_key(),
-            textures: SlotMap::with_key(),
+            //instance_bufs: SlotMap::with_key(),
+            //textures: SlotMap::with_key(),
 
             default_shader_key,
 
@@ -523,7 +525,6 @@ impl Engine {
                             self.starter_kit.frame,
                         );
                     }
-                    _ => todo!(),
                 }
             }
 

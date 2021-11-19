@@ -111,7 +111,7 @@ pub type Transform = [[f32; 4]; 4];
 slotmap::new_key_type! {
     pub struct VertexBuffer;
     pub struct IndexBuffer;
-    pub struct InstanceBuffer;
+    //pub struct InstanceBuffer;
     pub struct Shader;
     pub struct Texture;
 }
