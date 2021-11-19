@@ -1,4 +1,4 @@
-use idek::{IndexBuffer, prelude::*};
+use idek::{prelude::*, IndexBuffer};
 
 fn main() -> Result<()> {
     launch::<TriangleApp>(Settings::default().vr_if_any_args())
@@ -25,8 +25,7 @@ const QUAD_VERTS: [Vertex; 4] = [
 
 const QUAD_INDICES: [u32; 12] = [
     // Facing toward the camera
-    3, 1, 0, 3, 2, 1,
-    // Facing away
+    3, 1, 0, 3, 2, 1, // Facing away
     0, 1, 3, 1, 2, 3,
 ];
 

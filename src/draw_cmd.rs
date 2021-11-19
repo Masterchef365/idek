@@ -25,7 +25,7 @@ impl DrawCmd {
             transform: None,
         }
     }
-    
+
     pub fn instances(mut self, instances: InstanceBuffer) -> Self {
         self.instances = Some(instances);
         self

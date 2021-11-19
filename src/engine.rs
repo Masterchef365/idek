@@ -1,13 +1,21 @@
-use std::time::Instant;
-use slotmap::SlotMap;
-use watertender::{memory::UsageFlags, nalgebra::Matrix4, prelude::*, trivial::Primitive, vk::{CommandBuffer, CommandBufferAllocateInfoBuilder}};
-use anyhow::{Result, ensure};
-use watertender::defaults::FRAMES_IN_FLIGHT;
 use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture, VertexBuffer};
+use anyhow::{ensure, Result};
+use slotmap::SlotMap;
+use std::time::Instant;
+use watertender::defaults::FRAMES_IN_FLIGHT;
+use watertender::{
+    memory::UsageFlags,
+    nalgebra::Matrix4,
+    prelude::*,
+    trivial::Primitive,
+    vk::{CommandBuffer, CommandBufferAllocateInfoBuilder},
+};
 
 /// Launch an App
 pub fn launch<A: App + 'static>(settings: crate::Settings) -> Result<()> {
-    let info = AppInfo::default().validation(cfg!(debug_assertions)).name(settings.name.clone())?;
+    let info = AppInfo::default()
+        .validation(cfg!(debug_assertions))
+        .name(settings.name.clone())?;
     watertender::starter_kit::launch::<EngineWrapper<A>, _>(info, settings.vr, settings)
 }
 
@@ -20,15 +28,11 @@ struct EngineWrapper<A> {
 // Implement the MainLoop trait for the wrapper
 impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
     fn new(core: &SharedCore, mut platform: Platform<'_>, settings: Settings) -> Result<Self> {
-
         let mut engine = Engine::new(core, &mut platform, settings)?;
 
         let app = A::init(&mut engine, &mut platform)?;
 
-        Ok(Self {
-            app,
-            engine
-        })
+        Ok(Self { app, engine })
     }
 
     fn frame(
@@ -37,7 +41,6 @@ impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
         core: &SharedCore,
         mut platform: Platform,
     ) -> Result<PlatformReturn> {
-
         let frame_packet = self.app.frame(&mut self.engine, &mut platform)?;
 
         self.engine.frame(frame_packet, frame, core, &mut platform)
@@ -74,8 +77,10 @@ impl UploadBuffer {
         let mut instance = Self::new_empty(core, data.len() as _, dynamic)?;
         match &mut instance {
             Self::Static(buf) => buf.write_bytes(0, data)?,
-            Self::Dynamic(bufs) => for buf in bufs {
-                buf.write_bytes(0, data)?;
+            Self::Dynamic(bufs) => {
+                for buf in bufs {
+                    buf.write_bytes(0, data)?;
+                }
             }
         }
         Ok(instance)
@@ -98,14 +103,18 @@ impl UploadBuffer {
     }
 
     pub fn new_empty(core: &SharedCore, size: u64, dynamic: bool) -> Result<Self> {
-         let ci = vk::BufferCreateInfoBuilder::new()
+        let ci = vk::BufferCreateInfoBuilder::new()
             .usage(vk::BufferUsageFlags::TRANSFER_SRC)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .queue_family_indices(&[])
             .size(size);
         let make_buf = || ManagedBuffer::new(core.clone(), ci, UsageFlags::UPLOAD);
         Ok(match dynamic {
-            true => Self::Dynamic((0..FRAMES_IN_FLIGHT).map(|_| make_buf()).collect::<Result<_>>()?),
+            true => Self::Dynamic(
+                (0..FRAMES_IN_FLIGHT)
+                    .map(|_| make_buf())
+                    .collect::<Result<_>>()?,
+            ),
             false => Self::Static(make_buf()?),
         })
     }
@@ -180,9 +189,17 @@ impl Engine {
             .queue_family_indices(&[])
             .size(size_bytes);
 
-        let gpu_buf = ManagedBuffer::new(self.starter_kit.core.clone(), ci, UsageFlags::FAST_DEVICE_ACCESS)?;
+        let gpu_buf = ManagedBuffer::new(
+            self.starter_kit.core.clone(),
+            ci,
+            UsageFlags::FAST_DEVICE_ACCESS,
+        )?;
 
-        let upload_buf = UploadBuffer::new(&self.starter_kit.core, bytemuck::cast_slice(vertices), dynamic)?;
+        let upload_buf = UploadBuffer::new(
+            &self.starter_kit.core,
+            bytemuck::cast_slice(vertices),
+            dynamic,
+        )?;
 
         let key = self.vertex_bufs.insert(SyncMemory {
             cpu: upload_buf,
@@ -204,9 +221,17 @@ impl Engine {
             .queue_family_indices(&[])
             .size(size_bytes);
 
-        let gpu_buf = ManagedBuffer::new(self.starter_kit.core.clone(), ci, UsageFlags::FAST_DEVICE_ACCESS)?;
+        let gpu_buf = ManagedBuffer::new(
+            self.starter_kit.core.clone(),
+            ci,
+            UsageFlags::FAST_DEVICE_ACCESS,
+        )?;
 
-        let upload_buf = UploadBuffer::new(&self.starter_kit.core, bytemuck::cast_slice(indices), dynamic)?;
+        let upload_buf = UploadBuffer::new(
+            &self.starter_kit.core,
+            bytemuck::cast_slice(indices),
+            dynamic,
+        )?;
 
         let key = self.index_bufs.insert(SyncMemory {
             cpu: upload_buf,
@@ -224,12 +249,22 @@ impl Engine {
         todo!()
     }*/
 
-    pub fn shader(&mut self, vertex: &[u8], fragment: &[u8], primitive: Primitive) -> Result<Shader> {
+    pub fn shader(
+        &mut self,
+        vertex: &[u8],
+        fragment: &[u8],
+        primitive: Primitive,
+    ) -> Result<Shader> {
         todo!()
     }
 
     #[cfg(feature = "shaderc")]
-    pub fn shader_glsl(&mut self, vertex: &str, fragment: &str, primitive: Primitive) -> Result<Shader> {
+    pub fn shader_glsl(
+        &mut self,
+        vertex: &str,
+        fragment: &str,
+        primitive: Primitive,
+    ) -> Result<Shader> {
         todo!()
     }
 
@@ -238,7 +273,10 @@ impl Engine {
     pub fn texture(&mut self, data: &[u8], width: usize, dynamic: bool) -> Result<Texture> {
         ensure!(data.len() % 4 == 0, "Image data must be RGBA");
         let total_pixels = data.len() / 4;
-        ensure!(total_pixels % width == 0, "Image data length must be a multiple of width");
+        ensure!(
+            total_pixels % width == 0,
+            "Image data length must be a multiple of width"
+        );
         let image_height = total_pixels / width;
         todo!()
     }
@@ -247,13 +285,10 @@ impl Engine {
     /// (width, height)
     pub fn screen_size(&self) -> (u32, u32) {
         let extent = self.starter_kit.framebuffer.extent();
-        (
-            extent.width,
-            extent.height,
-        )
+        (extent.width, extent.height)
     }
 
-    /// Set the camera prefix. This transformation is applied to each vertex. In the OpenXR backend, 
+    /// Set the camera prefix. This transformation is applied to each vertex. In the OpenXR backend,
     /// this is applied before the camera view and projection matrices
     pub fn set_camera_prefix(&mut self, matrix: Matrix4<f32>) {
         self.camera_prefix = matrix;
@@ -288,13 +323,11 @@ impl Engine {
 
         // Create descriptor set layout
         const FRAME_DATA_BINDING: u32 = 0;
-        let bindings = [
-            vk::DescriptorSetLayoutBindingBuilder::new()
-                .binding(FRAME_DATA_BINDING)
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::ALL_GRAPHICS),
-        ];
+        let bindings = [vk::DescriptorSetLayoutBindingBuilder::new()
+            .binding(FRAME_DATA_BINDING)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::ALL_GRAPHICS)];
 
         let descriptor_set_layout_ci =
             vk::DescriptorSetLayoutCreateInfoBuilder::new().bindings(&bindings);
@@ -306,11 +339,9 @@ impl Engine {
         .result()?;
 
         // Create descriptor pool
-        let pool_sizes = [
-            vk::DescriptorPoolSizeBuilder::new()
-                ._type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(FRAMES_IN_FLIGHT as _),
-        ];
+        let pool_sizes = [vk::DescriptorPoolSizeBuilder::new()
+            ._type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(FRAMES_IN_FLIGHT as _)];
 
         let create_info = vk::DescriptorPoolCreateInfoBuilder::new()
             .pool_sizes(&pool_sizes)
@@ -331,14 +362,12 @@ impl Engine {
         // Write descriptor sets
         for (frame, &descriptor_set) in descriptor_sets.iter().enumerate() {
             let frame_data_bi = [scene_ubo.descriptor_buffer_info(frame)];
-            let writes = [
-                vk::WriteDescriptorSetBuilder::new()
-                    .buffer_info(&frame_data_bi)
-                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                    .dst_set(descriptor_set)
-                    .dst_binding(FRAME_DATA_BINDING)
-                    .dst_array_element(0),
-            ];
+            let writes = [vk::WriteDescriptorSetBuilder::new()
+                .buffer_info(&frame_data_bi)
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .dst_set(descriptor_set)
+                .dst_binding(FRAME_DATA_BINDING)
+                .dst_array_element(0)];
 
             unsafe {
                 core.device.update_descriptor_sets(&writes, &[]);
@@ -414,11 +443,21 @@ impl Engine {
                 match job {
                     QueuedUpload::VertexBuffer(key) => {
                         let memory = self.vertex_bufs.get(key).unwrap();
-                        write_cpu_gpu_copy(&self.starter_kit.core, command_buffer, memory, self.starter_kit.frame);
+                        write_cpu_gpu_copy(
+                            &self.starter_kit.core,
+                            command_buffer,
+                            memory,
+                            self.starter_kit.frame,
+                        );
                     }
                     QueuedUpload::IndexBuffer(key) => {
                         let memory = self.index_bufs.get(key).unwrap();
-                        write_cpu_gpu_copy(&self.starter_kit.core, command_buffer, memory, self.starter_kit.frame);
+                        write_cpu_gpu_copy(
+                            &self.starter_kit.core,
+                            command_buffer,
+                            memory,
+                            self.starter_kit.frame,
+                        );
                     }
                     _ => todo!(),
                 }
@@ -442,54 +481,43 @@ impl Engine {
                 core.device.cmd_bind_pipeline(
                     command_buffer,
                     vk::PipelineBindPoint::GRAPHICS,
-                    *self.shaders.get(cmd.shader.unwrap_or(self.default_shader_key)).unwrap()
+                    *self
+                        .shaders
+                        .get(cmd.shader.unwrap_or(self.default_shader_key))
+                        .unwrap(),
                 );
 
-                let vertex_memory = self
-                    .vertex_bufs
-                    .get(cmd.vertices)
-                    .unwrap();
+                let vertex_memory = self.vertex_bufs.get(cmd.vertices).unwrap();
 
                 core.device.cmd_bind_vertex_buffers(
                     command_buffer,
                     0,
-                    &[vertex_memory
-                        .gpu
-                        .buffer()
-                    ],
+                    &[vertex_memory.gpu.buffer()],
                     &[0],
                 );
 
                 if let Some(indices) = cmd.indices {
-                    let index_memory = self
-                        .index_bufs
-                        .get(indices)
-                        .unwrap();
+                    let index_memory = self.index_bufs.get(indices).unwrap();
                     core.device.cmd_bind_index_buffer(
                         command_buffer,
                         index_memory.gpu.buffer(),
                         0,
-                        vk::IndexType::UINT32
+                        vk::IndexType::UINT32,
                     );
 
-                    core.device.cmd_draw_indexed(
-                        command_buffer, 
-                        index_memory.length, 
-                        1, 0, 0, 0
-                    )
+                    core.device
+                        .cmd_draw_indexed(command_buffer, index_memory.length, 1, 0, 0, 0)
                 } else {
-                    core.device.cmd_draw(
-                        command_buffer,
-                        vertex_memory.length,
-                        1,
-                        0,
-                        0
-                    );
+                    core.device
+                        .cmd_draw(command_buffer, vertex_memory.length, 1, 0, 0);
                 }
             }
         }
 
-        let (ret, cameras) = watertender::multi_platform_camera::platform_camera_prefix(platform, self.camera_prefix)?;
+        let (ret, cameras) = watertender::multi_platform_camera::platform_camera_prefix(
+            platform,
+            self.camera_prefix,
+        )?;
 
         self.scene_ubo.upload(
             self.starter_kit.frame,
@@ -503,7 +531,6 @@ impl Engine {
         self.starter_kit.end_command_buffer(cmd)?;
 
         Ok(ret)
- 
     }
 
     fn swapchain_resize(&mut self, images: Vec<vk::Image>, extent: vk::Extent2D) -> Result<()> {
@@ -515,7 +542,12 @@ impl Engine {
     }
 }
 
-fn write_cpu_gpu_copy(core: &Core, command_buffer: CommandBuffer, memory: &SyncMemory, frame: usize) {
+fn write_cpu_gpu_copy(
+    core: &Core,
+    command_buffer: CommandBuffer,
+    memory: &SyncMemory,
+    frame: usize,
+) {
     let region = vk::BufferCopyBuilder::new()
         .size(memory.size_bytes)
         .src_offset(0)
@@ -535,9 +567,13 @@ impl Drop for Engine {
     fn drop(&mut self) {
         unsafe {
             let core = &self.starter_kit.core;
-            core.device.device_wait_idle().expect("Failed to idle the device");
-            core.device.destroy_descriptor_pool(Some(self.descriptor_pool), None);
-            core.device.destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
+            core.device
+                .device_wait_idle()
+                .expect("Failed to idle the device");
+            core.device
+                .destroy_descriptor_pool(Some(self.descriptor_pool), None);
+            core.device
+                .destroy_descriptor_set_layout(Some(self.descriptor_set_layout), None);
         }
     }
 }

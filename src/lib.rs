@@ -1,21 +1,23 @@
 use anyhow::Result;
 mod draw_cmd;
 mod engine;
-pub use engine::launch;
 pub use draw_cmd::DrawCmd;
-pub use watertender::vertex::Vertex;
-pub use watertender::mainloop::{PlatformEvent as Event, Platform};
-pub use watertender::trivial::Primitive;
-pub use watertender::winit_arcball::WinitArcBall;
+pub use engine::launch;
+pub use watertender::mainloop::{Platform, PlatformEvent as Event};
 pub use watertender::multi_platform_camera::MultiPlatformCamera;
+pub use watertender::trivial::Primitive;
+pub use watertender::vertex::Vertex;
+pub use watertender::winit_arcball::WinitArcBall;
 
-pub use watertender::winit;
-pub use watertender::openxr;
 pub use watertender::nalgebra;
+pub use watertender::openxr;
+pub use watertender::winit;
 
 /// Commonly used items
 pub mod prelude {
-    pub use super::{Settings, launch, Vertex, VertexBuffer, Context, DrawCmd, App, Event, Platform};
+    pub use super::{
+        launch, App, Context, DrawCmd, Event, Platform, Settings, Vertex, VertexBuffer,
+    };
     pub use anyhow::Result;
 }
 
@@ -79,8 +81,11 @@ pub trait App: Sized {
 pub fn close_when_asked(platform: &mut Platform, event: &Event) {
     match (event, platform) {
         (
-            Event::Winit(winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. }),
-            Platform::Winit { control_flow, .. }
+            Event::Winit(winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::CloseRequested,
+                ..
+            }),
+            Platform::Winit { control_flow, .. },
         ) => **control_flow = winit::event_loop::ControlFlow::Exit,
         _ => (),
     }

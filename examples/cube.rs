@@ -1,4 +1,4 @@
-use idek::{IndexBuffer, prelude::*, MultiPlatformCamera};
+use idek::{prelude::*, IndexBuffer, MultiPlatformCamera};
 
 fn main() -> Result<()> {
     launch::<TriangleApp>(Settings::default().vr_if_any_args())
@@ -16,7 +16,7 @@ impl App for TriangleApp {
         Ok(Self {
             verts: ctx.vertices(&vertices, false)?,
             indices: ctx.indices(&indices, false)?,
-            camera: MultiPlatformCamera::new(platform)
+            camera: MultiPlatformCamera::new(platform),
         })
     }
 
@@ -24,7 +24,12 @@ impl App for TriangleApp {
         Ok(vec![DrawCmd::new(self.verts).indices(self.indices)])
     }
 
-    fn event(&mut self, ctx: &mut Context, platform: &mut Platform, mut event: Event) -> Result<()> {
+    fn event(
+        &mut self,
+        ctx: &mut Context,
+        platform: &mut Platform,
+        mut event: Event,
+    ) -> Result<()> {
         if self.camera.handle_event(&mut event) {
             ctx.set_camera_prefix(self.camera.get_prefix(platform))
         }
