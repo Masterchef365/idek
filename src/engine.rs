@@ -505,11 +505,13 @@ impl Engine {
                         vk::IndexType::UINT32,
                     );
 
+                    let n_indices = cmd.limit.map(|limit| index_memory.length.min(limit)).unwrap_or(index_memory.length);
                     core.device
-                        .cmd_draw_indexed(command_buffer, index_memory.length, 1, 0, 0, 0)
+                        .cmd_draw_indexed(command_buffer, n_indices, 1, 0, 0, 0)
                 } else {
+                    let n_vertices = cmd.limit.map(|limit| vertex_memory.length.min(limit)).unwrap_or(vertex_memory.length);
                     core.device
-                        .cmd_draw(command_buffer, vertex_memory.length, 1, 0, 0);
+                        .cmd_draw(command_buffer, n_vertices, 1, 0, 0);
                 }
             }
         }
