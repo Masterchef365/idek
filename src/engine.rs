@@ -1,6 +1,6 @@
 use std::time::Instant;
 use slotmap::SlotMap;
-use watertender::{memory::UsageFlags, prelude::*, trivial::Primitive, vk::{CommandBuffer, CommandBufferAllocateInfoBuilder}};
+use watertender::{memory::UsageFlags, nalgebra::Matrix4, prelude::*, trivial::Primitive, vk::{CommandBuffer, CommandBufferAllocateInfoBuilder}};
 use anyhow::{Result, ensure};
 use watertender::defaults::FRAMES_IN_FLIGHT;
 use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture, VertexBuffer};
@@ -19,11 +19,11 @@ struct EngineWrapper<A> {
 
 // Implement the MainLoop trait for the wrapper
 impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
-    fn new(core: &SharedCore, platform: Platform<'_>, settings: Settings) -> Result<Self> {
+    fn new(core: &SharedCore, mut platform: Platform<'_>, settings: Settings) -> Result<Self> {
 
-        let mut engine = Engine::new(core, platform, settings)?;
+        let mut engine = Engine::new(core, &mut platform, settings)?;
 
-        let app = A::init(&mut engine)?;
+        let app = A::init(&mut engine, &mut platform)?;
 
         Ok(Self {
             app,
@@ -158,7 +158,7 @@ pub struct Engine {
     scene_ubo: FrameDataUbo<SceneData>,
     starter_kit: StarterKit,
 
-    camera_prefix: [f32; 4 * 4],
+    camera_prefix: Matrix4<f32>,
 
     /// Uploads to be completed during the next frame
     queued_uploads: Vec<QueuedUpload>,
@@ -220,8 +220,20 @@ impl Engine {
         todo!()
     }
 
+    /// Returns the current screen size in pixels
+    /// (width, height)
     pub fn screen_size(&self) -> (u32, u32) {
-        todo!()
+        let extent = self.starter_kit.framebuffer.extent();
+        (
+            extent.width,
+            extent.height,
+        )
+    }
+
+    /// Set the camera prefix. This transformation is applied to each vertex. In the OpenXR backend, 
+    /// this is applied before the camera view and projection matrices
+    pub fn set_camera_prefix(&mut self, matrix: Matrix4<f32>) {
+        self.camera_prefix = matrix;
     }
 
     pub fn update_vertices(&mut self, handle: VertexBuffer, vertices: &[Vertex]) -> Result<()> {
@@ -245,9 +257,9 @@ impl Engine {
 }
 
 impl Engine {
-    fn new(core: &SharedCore, mut platform: Platform<'_>, settings: Settings) -> Result<Self> {
+    fn new(core: &SharedCore, platform: &mut Platform<'_>, settings: Settings) -> Result<Self> {
         // Boilerplate
-        let starter_kit = StarterKit::new(core.clone(), &mut platform)?;
+        let starter_kit = StarterKit::new(core.clone(), platform)?;
 
         // Scene UBO
         let scene_ubo = FrameDataUbo::new(core.clone(), FRAMES_IN_FLIGHT)?;
@@ -358,12 +370,7 @@ impl Engine {
             scene_ubo,
             starter_kit,
 
-            camera_prefix: [
-                1., 0., 0., 0., //
-                0., 1., 0., 0., //
-                0., 0., 1., 0., //
-                0., 0., 0., 1., //
-            ],
+            camera_prefix: Matrix4::identity(),
 
             start_time: Instant::now(),
         })
@@ -374,7 +381,7 @@ impl Engine {
         packet: Vec<DrawCmd>,
         frame: Frame,
         core: &SharedCore,
-        _platform: &mut Platform,
+        platform: &mut Platform,
     ) -> Result<PlatformReturn> {
         let cmd = self.starter_kit.begin_command_buffer(&frame)?;
         let command_buffer = cmd.command_buffer;
@@ -435,18 +442,7 @@ impl Engine {
             }
         }
 
-        //let (ret, cameras) = watertender::multi_platform_camera::platform_camera_prefix(&platform, self.camera_prefix)?;
-        let (ret, cameras) = (PlatformReturn::Winit, [
-            1., 0., 0., 0., 
-            0., 1., 0., 0., 
-            0., 0., 1., 0., 
-            0., 0., 0., 1., 
-            //
-            1., 0., 0., 0., 
-            0., 1., 0., 0., 
-            0., 0., 1., 0., 
-            0., 0., 0., 1., 
-        ]);
+        let (ret, cameras) = watertender::multi_platform_camera::platform_camera_prefix(platform, self.camera_prefix)?;
 
         self.scene_ubo.upload(
             self.starter_kit.frame,

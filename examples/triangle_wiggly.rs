@@ -1,4 +1,4 @@
-use idek::{Platform, prelude::*};
+use idek::prelude::*;
 use std::time::Instant;
 
 fn main() -> Result<()> {
@@ -26,7 +26,7 @@ struct TriangleApp {
 }
 
 impl App for TriangleApp {
-    fn init(ctx: &mut Context) -> Result<Self> {
+    fn init(ctx: &mut Context, _: &mut Platform) -> Result<Self> {
         let verts = ctx.vertices(&TRIANGLE_MESH, true)?;
         Ok(Self { 
             verts,

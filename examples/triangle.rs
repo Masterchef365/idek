@@ -24,12 +24,12 @@ struct TriangleApp {
 }
 
 impl App for TriangleApp {
-    fn init(ctx: &mut Context) -> Result<Self> {
+    fn init(ctx: &mut Context, _: &mut Platform) -> Result<Self> {
         let verts = ctx.vertices(&TRIANGLE_MESH, false)?;
         Ok(Self { verts })
     }
 
-    fn frame(&mut self, _ctx: &mut Context) -> Result<Vec<DrawCmd>> {
+    fn frame(&mut self, _ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
         Ok(vec![DrawCmd::new(self.verts)])
     }
 }

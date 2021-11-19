@@ -9,10 +9,11 @@ pub use watertender::trivial::Primitive;
 
 pub use watertender::winit;
 pub use watertender::openxr;
+pub use watertender::nalgebra;
 
 /// Commonly used items
 pub mod prelude {
-    pub use super::{Settings, launch, Vertex, VertexBuffer, Context, DrawCmd, App, Event};
+    pub use super::{Settings, launch, Vertex, VertexBuffer, Context, DrawCmd, App, Event, Platform};
     pub use anyhow::Result;
 }
 
@@ -41,13 +42,14 @@ impl Default for Settings {
 /// An interface for applications
 pub trait App: Sized {
     /// Initialization function, called once to construct the app
-    fn init(ctx: &mut Context) -> Result<Self>;
+    fn init(ctx: &mut Context, platform: &mut Platform) -> Result<Self>;
 
     /// Called once per frame. Most app logic should live here.
     fn frame(&mut self, ctx: &mut Context, platform: &mut Platform) -> Result<Vec<DrawCmd>>;
 
     /// Called once per event
     fn event(&mut self, event: Event, platform: &mut Platform) {
+        // Exit when asked to
         match (event, platform) {
             (
                 Event::Winit(winit::event::Event::WindowEvent { event: winit::event::WindowEvent::CloseRequested, .. }),
