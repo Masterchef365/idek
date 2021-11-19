@@ -13,10 +13,14 @@ pub use watertender::nalgebra;
 pub use watertender::openxr;
 pub use watertender::winit;
 
+pub static DEFAULT_VERTEX_SHADER: &[u8] = include_bytes!("shaders/unlit.vert.spv");
+pub static DEFAULT_FRAGMENT_SHADER: &[u8] = include_bytes!("shaders/unlit.frag.spv");
+
 /// Commonly used items
 pub mod prelude {
     pub use super::{
-        launch, App, Context, DrawCmd, Event, Platform, Settings, Vertex, VertexBuffer,
+        launch, App, Context, DrawCmd, Event, Platform, Settings, Vertex, VertexBuffer, DEFAULT_FRAGMENT_SHADER, DEFAULT_VERTEX_SHADER,
+        IndexBuffer, MultiPlatformCamera, Primitive, Shader, 
     };
     pub use anyhow::Result;
 }

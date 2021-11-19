@@ -1,4 +1,4 @@
-use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture, VertexBuffer};
+use crate::{App, DrawCmd, IndexBuffer, InstanceBuffer, Settings, Shader, Texture, VertexBuffer, };
 use anyhow::{ensure, Result};
 use slotmap::SlotMap;
 use std::time::Instant;
@@ -11,9 +11,7 @@ use watertender::{
     vk::CommandBuffer,
 };
 use crate::Transform;
-
-pub static DEFAULT_VERTEX_SHADER: &[u8] = include_bytes!("shaders/unlit.vert.spv");
-pub static DEFAULT_FRAGMENT_SHADER: &[u8] = include_bytes!("shaders/unlit.frag.spv");
+use crate::{DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER};
 
 pub const TRANSFORM_IDENTITY: Transform = [
     [1.0, 0.0, 0.0, 0.0],
