@@ -8,26 +8,44 @@ struct TriangleApp {
     verts: VertexBuffer,
     indices: IndexBuffer,
     camera: MultiPlatformCamera,
+    original_verts: Vec<Vertex>,
 }
 
 impl App for TriangleApp {
     fn init(ctx: &mut Context, platform: &mut Platform) -> Result<Self> {
         let (vertices, indices) = rainbow_cube();
         Ok(Self {
-            verts: ctx.vertices(&vertices, false)?,
+            verts: ctx.vertices(&vertices, true)?,
             indices: ctx.indices(&indices, false)?,
             camera: MultiPlatformCamera::new(platform),
+            original_verts: vertices,
         })
     }
 
     fn frame(&mut self, ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
+        let time = ctx.start_time().elapsed().as_secs_f32();
+        let anim = time / 1000.;
+
         let mut draw_cmds = vec![];
+
+        let mut mutated_verts = self.original_verts.clone();
+        for (idx, vert) in mutated_verts.iter_mut().enumerate() {
+            let time = time + idx as f32 / 10.;
+            //vert.pos[0] += anim.cos() * 0.5;
+            //vert.pos[1] += (anim * 12.).cos() * 0.5;
+            //vert.pos[2] += (anim * 3.).cos() * 0.5;
+
+            vert.pos[0] += time.cos() * 0.15;
+            vert.pos[1] += (time * 12.).cos() * 0.15;
+            vert.pos[2] += (time * 3.).cos() * 0.15;
+        }
+        ctx.update_vertices(self.verts, &mutated_verts)?;
 
         let cube = DrawCmd::new(self.verts).indices(self.indices);
         let n_cubes = 1000;
         for i in 0..n_cubes {
             let mut i = i as f32 / n_cubes as f32;
-            i += ctx.start_time().elapsed().as_secs_f32() / 1000.;
+            i += anim;
             i *= std::f32::consts::TAU; 
 
             let sz = 20.;
