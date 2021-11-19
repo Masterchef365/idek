@@ -8,9 +8,12 @@ use watertender::{
     nalgebra::Matrix4,
     prelude::*,
     trivial::Primitive,
-    vk::{CommandBuffer, CommandBufferAllocateInfoBuilder},
+    vk::CommandBuffer,
 };
 use crate::Transform;
+
+pub static DEFAULT_VERTEX_SHADER: &[u8] = include_bytes!("shaders/unlit.vert.spv");
+pub static DEFAULT_FRAGMENT_SHADER: &[u8] = include_bytes!("shaders/unlit.frag.spv");
 
 pub const TRANSFORM_IDENTITY: Transform = [
     [1.0, 0.0, 0.0, 0.0],
@@ -18,7 +21,6 @@ pub const TRANSFORM_IDENTITY: Transform = [
     [0.0, 0.0, 1.0, 0.0],
     [0.0, 0.0, 0.0, 1.0],
 ];
-
 
 /// Launch an App
 pub fn launch<A: App + 'static>(settings: crate::Settings) -> Result<()> {
@@ -266,7 +268,14 @@ impl Engine {
         fragment: &[u8],
         primitive: Primitive,
     ) -> Result<Shader> {
-        todo!()
+        Ok(self.shaders.insert(shader(
+            &self.starter_kit.core,
+            vertex,
+            fragment,
+            primitive.into(),
+            self.starter_kit.render_pass,
+            self.pipeline_layout,
+        )?))
     }
 
     #[cfg(feature = "shaderc")]
@@ -448,8 +457,8 @@ impl Engine {
 
         let default_shader = shader(
             core,
-            include_bytes!("shaders/unlit.vert.spv"),
-            include_bytes!("shaders/unlit.frag.spv"),
+            DEFAULT_VERTEX_SHADER,
+            DEFAULT_FRAGMENT_SHADER,
             Primitive::Triangles.into(),
             starter_kit.render_pass,
             pipeline_layout,

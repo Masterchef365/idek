@@ -1,5 +1,4 @@
 use idek::{IndexBuffer, MultiPlatformCamera, nalgebra::{Matrix4, Vector3}, prelude::*};
-use watertender::trivial::draw;
 
 fn main() -> Result<()> {
     launch::<TriangleApp>(Settings::default().vr_if_any_args())
