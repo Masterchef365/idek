@@ -1,4 +1,4 @@
-use idek::{IndexBuffer, WinitArcBall, prelude::*, MultiPlatformCamera};
+use idek::{IndexBuffer, prelude::*, MultiPlatformCamera};
 
 fn main() -> Result<()> {
     launch::<TriangleApp>(Settings::default().vr_if_any_args())
@@ -12,14 +12,15 @@ struct TriangleApp {
 
 impl App for TriangleApp {
     fn init(ctx: &mut Context, platform: &mut Platform) -> Result<Self> {
+        let (vertices, indices) = rainbow_cube();
         Ok(Self {
-            verts: ctx.vertices(&QUAD_VERTS, false)?,
-            indices: ctx.indices(&QUAD_INDICES, false)?,
+            verts: ctx.vertices(&vertices, false)?,
+            indices: ctx.indices(&indices, false)?,
             camera: MultiPlatformCamera::new(platform)
         })
     }
 
-    fn frame(&mut self, ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
+    fn frame(&mut self, _ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
         Ok(vec![DrawCmd::new(self.verts).indices(self.indices)])
     }
 
@@ -32,28 +33,22 @@ impl App for TriangleApp {
     }
 }
 
-const QUAD_VERTS: [Vertex; 4] = [
-    Vertex {
-        pos: [-1., -1., 0.],
-        color: [0., 0., 0.],
-    },
-    Vertex {
-        pos: [1., -1., 0.],
-        color: [1., 0., 0.],
-    },
-    Vertex {
-        pos: [1., 1., 0.],
-        color: [1., 1., 0.],
-    },
-    Vertex {
-        pos: [-1., 1., 0.],
-        color: [0., 1., 0.],
-    },
-];
+fn rainbow_cube() -> (Vec<Vertex>, Vec<u32>) {
+    let vertices = vec![
+        Vertex::new([-1.0, -1.0, -1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([1.0, -1.0, -1.0], [1.0, 0.0, 1.0]),
+        Vertex::new([1.0, 1.0, -1.0], [1.0, 1.0, 0.0]),
+        Vertex::new([-1.0, 1.0, -1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([-1.0, -1.0, 1.0], [1.0, 0.0, 1.0]),
+        Vertex::new([1.0, -1.0, 1.0], [1.0, 1.0, 0.0]),
+        Vertex::new([1.0, 1.0, 1.0], [0.0, 1.0, 1.0]),
+        Vertex::new([-1.0, 1.0, 1.0], [1.0, 0.0, 1.0]),
+    ];
 
-const QUAD_INDICES: [u32; 12] = [
-    // Facing toward the camera
-    3, 1, 0, 3, 2, 1,
-    // Facing away
-    0, 1, 3, 1, 2, 3,
-];
+    let indices = vec![
+        3, 1, 0, 2, 1, 3, 2, 5, 1, 6, 5, 2, 6, 4, 5, 7, 4, 6, 7, 0, 4, 3, 0, 7, 7, 2, 3, 6, 2, 7,
+        0, 5, 4, 1, 5, 0,
+    ];
+
+    (vertices, indices)
+}
