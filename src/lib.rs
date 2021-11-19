@@ -39,6 +39,26 @@ impl Default for Settings {
     }
 }
 
+impl Settings {
+    // Optionally enable VR
+    pub fn vr(mut self, vr: bool) -> Self {
+        self.vr = vr;
+        self
+    }
+
+    // Set application name
+    pub fn name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    /// Enable VR if there are any command line arguments
+    pub fn vr_if_any_args(mut self) -> Self {
+        self.vr = std::env::args().skip(1).next().is_some();
+        self
+    }
+}
+
 /// An interface for applications
 pub trait App: Sized {
     /// Initialization function, called once to construct the app

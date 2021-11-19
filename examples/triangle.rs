@@ -1,7 +1,7 @@
 use idek::prelude::*;
 
 fn main() -> Result<()> {
-    launch::<TriangleApp>(Settings::default())
+    launch::<TriangleApp>(Settings::default().vr_if_any_args())
 }
 
 const TRIANGLE_MESH: [Vertex; 3] = [
