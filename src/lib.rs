@@ -11,6 +11,7 @@ pub use watertender::vertex::Vertex;
 pub use watertender::winit_arcball::WinitArcBall;
 
 pub use watertender::nalgebra;
+#[cfg(feature = "openxr")]
 pub use watertender::openxr;
 pub use watertender::winit;
 
