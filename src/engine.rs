@@ -273,6 +273,7 @@ impl Engine {
             primitive.into(),
             self.starter_kit.render_pass,
             self.pipeline_layout,
+            self.starter_kit.msaa_samples,
         )?))
     }
 
@@ -351,7 +352,10 @@ fn create_transform_buffers(core: &SharedCore, max_transforms: usize) -> Result<
 impl Engine {
     fn new(core: &SharedCore, platform: &mut Platform<'_>, settings: Settings) -> Result<Self> {
         // Boilerplate
-        let starter_kit = StarterKit::new(core.clone(), platform)?;
+        let starter_kit = StarterKit::new(core.clone(), platform, watertender::starter_kit::Settings {
+            msaa_samples: settings.msaa_samples as _,
+            ..Default::default()
+        })?;
 
         // Scene UBO
         let scene_ubo = FrameDataUbo::new(core.clone(), FRAMES_IN_FLIGHT)?;
@@ -462,6 +466,7 @@ impl Engine {
             Primitive::Triangles.into(),
             starter_kit.render_pass,
             pipeline_layout,
+            starter_kit.msaa_samples,
         )?;
 
         let default_shader_key = shaders.insert(default_shader);
