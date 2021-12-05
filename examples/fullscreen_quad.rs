@@ -1,4 +1,5 @@
 use idek::{prelude::*, IndexBuffer};
+use std::fs;
 
 fn main() -> Result<()> {
     launch::<TriangleApp>(Settings::default().vr_if_any_args())
@@ -32,16 +33,27 @@ const QUAD_INDICES: [u32; 12] = [
 struct TriangleApp {
     verts: VertexBuffer,
     indices: IndexBuffer,
+    shader: Shader,
 }
 
 impl App for TriangleApp {
     fn init(ctx: &mut Context, _: &mut Platform) -> Result<Self> {
         let verts = ctx.vertices(&QUAD_VERTS, false)?;
         let indices = ctx.indices(&QUAD_INDICES, false)?;
-        Ok(Self { verts, indices })
+
+        let custom_frag = fs::read("examples/custom.frag.spv")?;
+        let shader = ctx.shader(DEFAULT_VERTEX_SHADER, &custom_frag, Primitive::Triangles)?;
+
+        Ok(Self {
+            verts,
+            indices,
+            shader,
+        })
     }
 
     fn frame(&mut self, _ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
-        Ok(vec![DrawCmd::new(self.verts).indices(self.indices)])
+        Ok(vec![DrawCmd::new(self.verts)
+            .indices(self.indices)
+            .shader(self.shader)])
     }
 }

@@ -1197,7 +1197,7 @@ checksum = "fd6fbd9a79829dd1ad0cc20627bf1ed606756a7f77edff7b66b7064f9cb327c6"
 [[package]]
 name = "watertender"
 version = "0.1.0"
-source = "git+https://github.com/Masterchef365/watertender.git?branch=idek_msaa#bad137897c8f47f7dc1d16efeee61fd24cba4f6d"
+source = "git+https://github.com/Masterchef365/watertender.git?branch=idek_tweaks#fadc788d813ce03226285de461538352fc2c59c3"
 dependencies = [
  "anyhow",
  "bytemuck",
