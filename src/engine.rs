@@ -533,6 +533,8 @@ impl Engine {
                 }
             }
 
+
+
             self.starter_kit.begin_render_pass(&frame);
             self.starter_kit.set_viewport();
 

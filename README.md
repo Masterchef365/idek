@@ -15,3 +15,4 @@
 - [ ] Setting application name in settings should actually set the window title from FPS!
 - [ ] Seperate view/projection matrices, resolution in UBO
 - [ ] Simple GPU-driven rendering
+- [ ] Point size and line size; useful for making circles
