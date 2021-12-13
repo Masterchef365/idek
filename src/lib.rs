@@ -119,6 +119,7 @@ slotmap::new_key_type! {
 }
 
 /// Context with which to change the rendering environment from within an App
+pub use engine::Engine;
 pub type Context = engine::Engine;
 
 /// Return a camera prefix matrix which keeps (-1, 1) on XY visible and at a 1:1 aspect ratio
