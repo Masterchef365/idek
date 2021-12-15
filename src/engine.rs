@@ -533,7 +533,20 @@ impl Engine {
                 }
             }
 
+            // Make sure buffer uploads are synchronized
+            let buf_upload_mem_barrier = vk::MemoryBarrierBuilder::new()
+                .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+                .dst_access_mask(vk::AccessFlags::SHADER_READ);
 
+            core.device.cmd_pipeline_barrier(
+                command_buffer, 
+                vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::ALL_GRAPHICS,
+                None, 
+                &[buf_upload_mem_barrier], 
+                &[], 
+                &[]
+            );
 
             self.starter_kit.begin_render_pass(&frame);
             self.starter_kit.set_viewport();
