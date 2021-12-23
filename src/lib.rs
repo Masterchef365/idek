@@ -21,8 +21,9 @@ pub static DEFAULT_FRAGMENT_SHADER: &[u8] = include_bytes!("shaders/unlit.frag.s
 /// Commonly used items
 pub mod prelude {
     pub use super::{
-        launch, App, Context, DrawCmd, Event, Platform, Settings, Vertex, VertexBuffer, DEFAULT_FRAGMENT_SHADER, DEFAULT_VERTEX_SHADER,
-        IndexBuffer, MultiPlatformCamera, Primitive, Shader, 
+        launch, App, Context, DrawCmd, Event, IndexBuffer, MultiPlatformCamera, Platform,
+        Primitive, Settings, Shader, Vertex, VertexBuffer, DEFAULT_FRAGMENT_SHADER,
+        DEFAULT_VERTEX_SHADER,
     };
     pub use anyhow::Result;
 }

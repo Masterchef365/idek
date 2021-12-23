@@ -1,4 +1,8 @@
-use idek::{IndexBuffer, MultiPlatformCamera, nalgebra::{Matrix4, Vector3}, prelude::*};
+use idek::{
+    nalgebra::{Matrix4, Vector3},
+    prelude::*,
+    IndexBuffer, MultiPlatformCamera,
+};
 
 fn main() -> Result<()> {
     launch::<_, TriangleApp>(Settings::default().vr_if_any_args())
@@ -28,7 +32,7 @@ impl App for TriangleApp {
         for i in 0..n_cubes {
             let mut i = i as f32 / n_cubes as f32;
             i += ctx.start_time().elapsed().as_secs_f32() / 1000.;
-            i *= std::f32::consts::TAU; 
+            i *= std::f32::consts::TAU;
 
             let sz = 20.;
             let x = i.cos() * sz;

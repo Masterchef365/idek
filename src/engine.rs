@@ -1,18 +1,14 @@
+use crate::Transform;
 use crate::{App, DrawCmd, IndexBuffer, Settings, Shader, VertexBuffer};
+use crate::{DEFAULT_FRAGMENT_SHADER, DEFAULT_VERTEX_SHADER};
 use anyhow::{ensure, Result};
 use slotmap::SlotMap;
+use std::marker::PhantomData;
 use std::time::Instant;
 use watertender::defaults::FRAMES_IN_FLIGHT;
 use watertender::{
-    memory::UsageFlags,
-    nalgebra::Matrix4,
-    prelude::*,
-    trivial::Primitive,
-    vk::CommandBuffer,
+    memory::UsageFlags, nalgebra::Matrix4, prelude::*, trivial::Primitive, vk::CommandBuffer,
 };
-use crate::Transform;
-use crate::{DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER};
-use std::marker::PhantomData;
 
 pub const TRANSFORM_IDENTITY: Transform = [
     [1.0, 0.0, 0.0, 0.0],
@@ -22,7 +18,9 @@ pub const TRANSFORM_IDENTITY: Transform = [
 ];
 
 /// Launch an App
-pub fn launch<Args: 'static, A: App<Args> + 'static>(settings: crate::Settings<Args>) -> Result<()> {
+pub fn launch<Args: 'static, A: App<Args> + 'static>(
+    settings: crate::Settings<Args>,
+) -> Result<()> {
     let info = AppInfo::default()
         .validation(cfg!(debug_assertions))
         .name(settings.name.clone())?;
@@ -38,12 +36,20 @@ struct EngineWrapper<Args, A: App<Args>> {
 
 // Implement the MainLoop trait for the wrapper
 impl<Args, A: App<Args>> MainLoop<Settings<Args>> for EngineWrapper<Args, A> {
-    fn new(core: &SharedCore, mut platform: Platform<'_>, settings: Settings<Args>) -> Result<Self> {
+    fn new(
+        core: &SharedCore,
+        mut platform: Platform<'_>,
+        settings: Settings<Args>,
+    ) -> Result<Self> {
         let mut engine = Engine::new(core, &mut platform, &settings)?;
 
         let app = A::init(&mut engine, &mut platform, settings.args)?;
 
-        Ok(Self { app, engine, _phantomdata: PhantomData })
+        Ok(Self {
+            app,
+            engine,
+            _phantomdata: PhantomData,
+        })
     }
 
     fn frame(
@@ -167,7 +173,6 @@ pub struct Engine {
     //instance_bufs: SlotMap<InstanceBuffer, SyncMemory>,
     shaders: SlotMap<Shader, vk::Pipeline>,
     //textures: SlotMap<Texture, (ManagedImage, UploadBuffer)>,
-
     /// Trivial built-in shader
     default_shader_key: Shader,
 
@@ -340,24 +345,35 @@ impl Engine {
     }
 }
 
-fn create_transform_buffers(core: &SharedCore, max_transforms: usize) -> Result<Vec<ManagedBuffer>> {
+fn create_transform_buffers(
+    core: &SharedCore,
+    max_transforms: usize,
+) -> Result<Vec<ManagedBuffer>> {
     let total_size = std::mem::size_of::<Transform>() * max_transforms;
-        let ci = vk::BufferCreateInfoBuilder::new()
-            .size(total_size as u64)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .usage(vk::BufferUsageFlags::STORAGE_BUFFER);
-        (0..FRAMES_IN_FLIGHT)
-            .map(|_| ManagedBuffer::new(core.clone(), ci, watertender::memory::UsageFlags::UPLOAD))
-            .collect::<Result<Vec<_>>>()
+    let ci = vk::BufferCreateInfoBuilder::new()
+        .size(total_size as u64)
+        .sharing_mode(vk::SharingMode::EXCLUSIVE)
+        .usage(vk::BufferUsageFlags::STORAGE_BUFFER);
+    (0..FRAMES_IN_FLIGHT)
+        .map(|_| ManagedBuffer::new(core.clone(), ci, watertender::memory::UsageFlags::UPLOAD))
+        .collect::<Result<Vec<_>>>()
 }
 
 impl Engine {
-    fn new<Args>(core: &SharedCore, platform: &mut Platform<'_>, settings: &Settings<Args>) -> Result<Self> {
+    fn new<Args>(
+        core: &SharedCore,
+        platform: &mut Platform<'_>,
+        settings: &Settings<Args>,
+    ) -> Result<Self> {
         // Boilerplate
-        let starter_kit = StarterKit::new(core.clone(), platform, watertender::starter_kit::Settings {
-            msaa_samples: settings.msaa_samples as _,
-            ..Default::default()
-        })?;
+        let starter_kit = StarterKit::new(
+            core.clone(),
+            platform,
+            watertender::starter_kit::Settings {
+                msaa_samples: settings.msaa_samples as _,
+                ..Default::default()
+            },
+        )?;
 
         // Scene UBO
         let scene_ubo = FrameDataUbo::new(core.clone(), FRAMES_IN_FLIGHT)?;
@@ -479,7 +495,6 @@ impl Engine {
             index_bufs: SlotMap::with_key(),
             //instance_bufs: SlotMap::with_key(),
             //textures: SlotMap::with_key(),
-
             default_shader_key,
 
             transforms,
@@ -541,13 +556,13 @@ impl Engine {
                 .dst_access_mask(vk::AccessFlags::SHADER_READ);
 
             core.device.cmd_pipeline_barrier(
-                command_buffer, 
+                command_buffer,
                 vk::PipelineStageFlags::TRANSFER,
                 vk::PipelineStageFlags::ALL_GRAPHICS,
-                None, 
-                &[buf_upload_mem_barrier], 
-                &[], 
-                &[]
+                None,
+                &[buf_upload_mem_barrier],
+                &[],
+                &[],
             );
 
             self.starter_kit.begin_render_pass(&frame);
@@ -617,13 +632,18 @@ impl Engine {
                         vk::IndexType::UINT32,
                     );
 
-                    let n_indices = cmd.limit.map(|limit| index_memory.length.min(limit)).unwrap_or(index_memory.length);
+                    let n_indices = cmd
+                        .limit
+                        .map(|limit| index_memory.length.min(limit))
+                        .unwrap_or(index_memory.length);
                     core.device
                         .cmd_draw_indexed(command_buffer, n_indices, 1, 0, 0, 0)
                 } else {
-                    let n_vertices = cmd.limit.map(|limit| vertex_memory.length.min(limit)).unwrap_or(vertex_memory.length);
-                    core.device
-                        .cmd_draw(command_buffer, n_vertices, 1, 0, 0);
+                    let n_vertices = cmd
+                        .limit
+                        .map(|limit| vertex_memory.length.min(limit))
+                        .unwrap_or(vertex_memory.length);
+                    core.device.cmd_draw(command_buffer, n_vertices, 1, 0, 0);
                 }
             }
 
@@ -631,7 +651,10 @@ impl Engine {
             let bytes = bytemuck::cast_slice(&transforms);
             let frame = self.starter_kit.frame;
             let buffer = &mut self.transforms[frame];
-            ensure!((bytes.len() as u64) < buffer.memory.as_ref().unwrap().size(), "Maximum transforms exceeded");
+            ensure!(
+                (bytes.len() as u64) < buffer.memory.as_ref().unwrap().size(),
+                "Maximum transforms exceeded"
+            );
             buffer.write_bytes(0, bytes)?;
         }
 

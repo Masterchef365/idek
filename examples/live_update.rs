@@ -44,7 +44,14 @@ impl App for TriangleApp {
 fn pattern(time: f32) -> (Vec<Vertex>, Vec<u32>) {
     let width = 100;
     (
-        pattern_internal(time / 10., width, 1.0, 0.1, &[(-0.3, 0.2), (0.6, 0.8), (-0.1, -0.3)], 18.),
+        pattern_internal(
+            time / 10.,
+            width,
+            1.0,
+            0.1,
+            &[(-0.3, 0.2), (0.6, 0.8), (-0.1, -0.3)],
+            18.,
+        ),
         dense_grid_tri_indices(width),
     )
 }
