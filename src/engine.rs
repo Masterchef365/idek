@@ -12,6 +12,7 @@ use watertender::{
 };
 use crate::Transform;
 use crate::{DEFAULT_VERTEX_SHADER, DEFAULT_FRAGMENT_SHADER};
+use std::marker::PhantomData;
 
 pub const TRANSFORM_IDENTITY: Transform = [
     [1.0, 0.0, 0.0, 0.0],
@@ -21,27 +22,28 @@ pub const TRANSFORM_IDENTITY: Transform = [
 ];
 
 /// Launch an App
-pub fn launch<A: App + 'static>(settings: crate::Settings) -> Result<()> {
+pub fn launch<Args: 'static, A: App<Args> + 'static>(settings: crate::Settings<Args>) -> Result<()> {
     let info = AppInfo::default()
         .validation(cfg!(debug_assertions))
         .name(settings.name.clone())?;
-    watertender::starter_kit::launch::<EngineWrapper<A>, _>(info, settings.vr, settings)
+    watertender::starter_kit::launch::<EngineWrapper<Args, A>, _>(info, settings.vr, settings)
 }
 
 /// A wrapper type to aid in managing the App and Engine lifetimes. The EngineWrapper is the actual main loop target, but it defers to the actual Engine object for everything outside of calling the App.
-struct EngineWrapper<A> {
+struct EngineWrapper<Args, A: App<Args>> {
     app: A,
     engine: Engine,
+    _phantomdata: PhantomData<Args>,
 }
 
 // Implement the MainLoop trait for the wrapper
-impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
-    fn new(core: &SharedCore, mut platform: Platform<'_>, settings: Settings) -> Result<Self> {
-        let mut engine = Engine::new(core, &mut platform, settings)?;
+impl<Args, A: App<Args>> MainLoop<Settings<Args>> for EngineWrapper<Args, A> {
+    fn new(core: &SharedCore, mut platform: Platform<'_>, settings: Settings<Args>) -> Result<Self> {
+        let mut engine = Engine::new(core, &mut platform, &settings)?;
 
-        let app = A::init(&mut engine, &mut platform)?;
+        let app = A::init(&mut engine, &mut platform, settings.args)?;
 
-        Ok(Self { app, engine })
+        Ok(Self { app, engine, _phantomdata: PhantomData })
     }
 
     fn frame(
@@ -69,7 +71,7 @@ impl<A: App> MainLoop<Settings> for EngineWrapper<A> {
     }
 }
 
-impl<A: App> SyncMainLoop<Settings> for EngineWrapper<A> {
+impl<Args, A: App<Args>> SyncMainLoop<Settings<Args>> for EngineWrapper<Args, A> {
     fn winit_sync(&self) -> (vk::Semaphore, vk::Semaphore) {
         self.engine.winit_sync()
     }
@@ -350,7 +352,7 @@ fn create_transform_buffers(core: &SharedCore, max_transforms: usize) -> Result<
 }
 
 impl Engine {
-    fn new(core: &SharedCore, platform: &mut Platform<'_>, settings: Settings) -> Result<Self> {
+    fn new<Args>(core: &SharedCore, platform: &mut Platform<'_>, settings: &Settings<Args>) -> Result<Self> {
         // Boilerplate
         let starter_kit = StarterKit::new(core.clone(), platform, watertender::starter_kit::Settings {
             msaa_samples: settings.msaa_samples as _,

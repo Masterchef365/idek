@@ -28,7 +28,7 @@ pub mod prelude {
 }
 
 /// Launch settings
-pub struct Settings {
+pub struct Settings<Args = ()> {
     /// MSAA samples. Must be a power of two (up to 16)
     pub msaa_samples: u8,
 
@@ -40,20 +40,24 @@ pub struct Settings {
 
     /// Maximum number of transforms able to be used at once
     pub max_transforms: usize,
+
+    /// User-defined arguments
+    pub args: Args,
 }
 
-impl Default for Settings {
+impl Default for Settings<()> {
     fn default() -> Self {
         Self {
             msaa_samples: 4,
             vr: false,
             name: "Idek".to_string(),
             max_transforms: 10_000,
+            args: (),
         }
     }
 }
 
-impl Settings {
+impl<Args> Settings<Args> {
     // Optionally enable VR
     pub fn vr(mut self, vr: bool) -> Self {
         self.vr = vr;
@@ -80,9 +84,9 @@ impl Settings {
 }
 
 /// An interface for applications
-pub trait App: Sized {
+pub trait App<Args = ()>: Sized {
     /// Initialization function, called once to construct the app
-    fn init(ctx: &mut Context, platform: &mut Platform) -> Result<Self>;
+    fn init(ctx: &mut Context, platform: &mut Platform, args: Args) -> Result<Self>;
 
     /// Called once per frame. Most app logic should live here.
     fn frame(&mut self, ctx: &mut Context, platform: &mut Platform) -> Result<Vec<DrawCmd>>;

@@ -1,7 +1,7 @@
 use idek::{prelude::*, IndexBuffer, MultiPlatformCamera};
 
 fn main() -> Result<()> {
-    launch::<TriangleApp>(Settings::default().vr_if_any_args())
+    launch::<_, TriangleApp>(Settings::default().vr_if_any_args())
 }
 
 struct TriangleApp {
@@ -11,7 +11,7 @@ struct TriangleApp {
 }
 
 impl App for TriangleApp {
-    fn init(ctx: &mut Context, platform: &mut Platform) -> Result<Self> {
+    fn init(ctx: &mut Context, platform: &mut Platform, _: ()) -> Result<Self> {
         let (vertices, indices) = pattern(ctx.start_time().elapsed().as_secs_f32());
         Ok(Self {
             verts: ctx.vertices(&vertices, true)?,

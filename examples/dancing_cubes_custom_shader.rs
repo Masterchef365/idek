@@ -1,7 +1,7 @@
 use idek::{nalgebra::{Matrix4, Vector3}, prelude::*};
 
 fn main() -> Result<()> {
-    launch::<TriangleApp>(Settings::default().vr_if_any_args())
+    launch::<_, TriangleApp>(Settings::default().vr_if_any_args())
 }
 
 struct TriangleApp {
@@ -12,7 +12,7 @@ struct TriangleApp {
 }
 
 impl App for TriangleApp {
-    fn init(ctx: &mut Context, platform: &mut Platform) -> Result<Self> {
+    fn init(ctx: &mut Context, platform: &mut Platform, _: ()) -> Result<Self> {
         let (vertices, indices) = rainbow_cube();
         Ok(Self {
             verts: ctx.vertices(&vertices, false)?,

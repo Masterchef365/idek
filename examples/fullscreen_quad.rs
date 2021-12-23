@@ -2,7 +2,7 @@ use idek::{prelude::*, IndexBuffer};
 use std::fs;
 
 fn main() -> Result<()> {
-    launch::<TriangleApp>(Settings::default().vr_if_any_args())
+    launch::<_, TriangleApp>(Settings::default().vr_if_any_args())
 }
 
 const QUAD_VERTS: [Vertex; 4] = [
@@ -37,7 +37,7 @@ struct TriangleApp {
 }
 
 impl App for TriangleApp {
-    fn init(ctx: &mut Context, _: &mut Platform) -> Result<Self> {
+    fn init(ctx: &mut Context, _: &mut Platform, _: ()) -> Result<Self> {
         let verts = ctx.vertices(&QUAD_VERTS, false)?;
         let indices = ctx.indices(&QUAD_INDICES, false)?;
 
