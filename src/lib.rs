@@ -52,14 +52,14 @@ pub struct Settings<Args = ()> {
     pub args: Args,
 }
 
-impl Default for Settings<()> {
+impl<T: Default> Default for Settings<T> {
     fn default() -> Self {
         Self {
             msaa_samples: 4,
             vr: false,
             name: "Idek".to_string(),
             max_transforms: 10_000,
-            args: (),
+            args: Default::default(),
         }
     }
 }
@@ -77,15 +77,27 @@ impl<Args> Settings<Args> {
         self
     }
 
-    /// Enable VR if there are any command line arguments
+    /// Enable VR if there are any command line arguments. Useful for debugging or simple use-cases
     pub fn vr_if_any_args(mut self) -> Self {
         self.vr = std::env::args().skip(1).next().is_some();
+        self
+    }
+
+    /// Set the number of MSAA samples
+    pub fn msaa_samples(mut self, samples: u8) -> Self {
+        self.msaa_samples = samples;
         self
     }
 
     /// Enable VR if there are any command line arguments
     pub fn max_transforms(mut self, max_transforms: usize) -> Self {
         self.max_transforms = max_transforms;
+        self
+    }
+
+    /// Set the user args for your app
+    pub fn args(mut self, args: Args) -> Self {
+        self.args = args;
         self
     }
 }

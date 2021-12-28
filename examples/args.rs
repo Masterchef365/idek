@@ -1,26 +1,20 @@
 use idek::prelude::*;
 
 fn main() -> Result<()> {
-    launch::<_, TriangleApp>(Settings {
-        max_transforms: 10_000,
-        msaa_samples: 4,
-        vr: false,
-        name: "Triange app".to_string(),
-        args: [
-            Vertex {
-                pos: [0., 0.5, 0.],
-                color: [1., 0., 0.],
-            },
-            Vertex {
-                pos: [0.5, -0.5, 0.],
-                color: [0., 0., 1.],
-            },
-            Vertex {
-                pos: [-0.5, -0.5, 0.],
-                color: [0., 1., 0.],
-            },
-        ],
-    })
+    launch::<_, TriangleApp>(Settings::default().args([
+        Vertex {
+            pos: [0., 0.5, 0.],
+            color: [1., 0., 0.],
+        },
+        Vertex {
+            pos: [0.5, -0.5, 0.],
+            color: [0., 0., 1.],
+        },
+        Vertex {
+            pos: [-0.5, -0.5, 0.],
+            color: [0., 1., 0.],
+        },
+    ]))
 }
 
 struct TriangleApp {
