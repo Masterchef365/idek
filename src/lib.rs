@@ -4,11 +4,17 @@ mod engine;
 pub use draw_cmd::DrawCmd;
 pub use engine::launch;
 pub use watertender::mainloop::{Platform, PlatformEvent as Event};
-pub use watertender::multi_platform_camera::MultiPlatformCamera;
 use watertender::nalgebra::{Matrix4, Vector4};
-pub use watertender::trivial::Primitive;
 pub use watertender::vertex::Vertex;
+
+/// An arcball camera for windowed mode
 pub use watertender::winit_arcball::WinitArcBall;
+
+/// An arcball in windowed contexts, and a system-specific camera in VR contexts
+pub use watertender::multi_platform_camera::MultiPlatformCamera;
+
+/// Primitive to draw with
+pub use watertender::trivial::Primitive;
 
 pub use watertender::nalgebra;
 #[cfg(feature = "openxr")]
@@ -116,11 +122,16 @@ pub fn close_when_asked(platform: &mut Platform, event: &Event) {
 pub type Transform = [[f32; 4]; 4];
 
 slotmap::new_key_type! {
+    /// A vertex buffer
     pub struct VertexBuffer;
+    /// An index buffer
     pub struct IndexBuffer;
-    //pub struct InstanceBuffer;
+    /// A shader
     pub struct Shader;
+    /// A texture
     pub struct Texture;
+    // /// An instance buffer
+    // pub struct InstanceBuffer;
 }
 
 /// Context with which to change the rendering environment from within an App
