@@ -1,5 +1,5 @@
 use crate::Transform;
-use crate::{App, DrawCmd, IndexBuffer, Settings, Shader, VertexBuffer};
+use crate::{App, DrawCmd, IndexBuffer, Settings, Shader, Texture, VertexBuffer};
 use crate::{DEFAULT_FRAGMENT_SHADER, DEFAULT_VERTEX_SHADER};
 use anyhow::{ensure, Result};
 use slotmap::SlotMap;
@@ -140,7 +140,7 @@ impl UploadBuffer {
 enum QueuedUpload {
     VertexBuffer(VertexBuffer),
     IndexBuffer(IndexBuffer),
-    //Texture(Texture),
+    Texture(Texture),
 }
 
 /// All data inside the scene UBO
