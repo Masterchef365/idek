@@ -4,41 +4,36 @@ use crate::*;
 #[derive(Copy, Clone)]
 pub struct DrawCmd {
     pub vertices: VertexBuffer,
-    //pub instances: Option<InstanceBuffer>,
     pub indices: Option<IndexBuffer>,
-    //pub texture: Option<Texture>,
+    pub texture: Option<Texture>,
     pub shader: Option<Shader>,
     pub transform: Option<Transform>,
     pub limit: Option<u32>,
+    //pub instances: Option<InstanceBuffer>,
 }
 
 impl DrawCmd {
     pub fn new(vertices: VertexBuffer) -> Self {
         Self {
             vertices,
-            //instances: None,
             indices: None,
-            //texture: None,
+            texture: None,
             shader: None,
             transform: None,
             limit: None,
+            //instances: None,
         }
     }
-
-    /*pub fn instances(mut self, instances: InstanceBuffer) -> Self {
-        self.instances = Some(instances);
-        self
-    }*/
 
     pub fn indices(mut self, indices: IndexBuffer) -> Self {
         self.indices = Some(indices);
         self
     }
 
-    /*pub fn texture(mut self, texture: Texture) -> Self {
+    pub fn texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
         self
-    }*/
+    }
 
     pub fn shader(mut self, shader: Shader) -> Self {
         self.shader = Some(shader);
@@ -57,4 +52,9 @@ impl DrawCmd {
         self.limit = Some(limit);
         self
     }
+
+    /*pub fn instances(mut self, instances: InstanceBuffer) -> Self {
+        self.instances = Some(instances);
+        self
+    }*/
 }

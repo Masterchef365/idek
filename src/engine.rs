@@ -298,7 +298,6 @@ impl Engine {
         todo!()
     }
 
-    /*
     /// Create a new texture containing the specified data with the specified width. Data must be
     /// 8-bit RGBA (4 bytes per pixel), and must be in row-major order.
     pub fn texture(&mut self, data: &[u8], width: usize, dynamic: bool) -> Result<Texture> {
@@ -309,9 +308,9 @@ impl Engine {
             "Image data length must be a multiple of width"
         );
         let image_height = total_pixels / width;
+
         todo!()
     }
-    */
 
     /// Returns the current screen size in pixels
     /// (width, height)
@@ -554,6 +553,7 @@ impl Engine {
                             self.starter_kit.frame,
                         );
                     }
+                    QueuedUpload::Texture(tex) => {},
                 }
             }
 

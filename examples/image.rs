@@ -9,19 +9,19 @@ fn main() -> Result<()> {
 struct ImageApp {
     verts: VertexBuffer,
     indices: IndexBuffer,
-    //texture: Texture,
+    texture: Texture,
     camera: MultiPlatformCamera,
 }
 
 impl App for ImageApp {
     fn init(ctx: &mut Context, platform: &mut Platform, _: ()) -> Result<Self> {
-        let (width, rgb_data) = load_png_rgb("examples/seasons_greasons.png")?;
-        let height = rgb_data.len() / (width * 3);
+        let (width, rgb_data) = load_png_rgba("examples/seasons_greasons.png")?;
+        let height = rgb_data.len() / (width * 4);
 
         let (vertices, indices) = image_quad(width as f32 / height as f32);
 
         Ok(Self {
-            //texture: ctx.texture(&rgb_data, width, false)?,
+            texture: ctx.texture(&rgb_data, width, false)?,
             verts: ctx.vertices(&vertices, false)?,
             indices: ctx.indices(&indices, false)?,
             camera: MultiPlatformCamera::new(platform),
@@ -29,11 +29,9 @@ impl App for ImageApp {
     }
 
     fn frame(&mut self, _ctx: &mut Context, _: &mut Platform) -> Result<Vec<DrawCmd>> {
-        Ok(vec![
-            DrawCmd::new(self.verts)
-                .indices(self.indices)
-                //.texture(self.texture)
-        ])
+        Ok(vec![DrawCmd::new(self.verts)
+            .indices(self.indices)
+            .texture(self.texture)])
     }
 
     fn event(
@@ -64,8 +62,8 @@ fn image_quad(aspect: f32) -> (Vec<Vertex>, Vec<u32>) {
     (vertices, indices)
 }
 
-/// Returns (width, rgb data) for the given PNG path
-fn load_png_rgb(path: impl AsRef<Path>) -> Result<(usize, Vec<u8>)> {
+/// Returns (width, RGBA data) for the given PNG path
+fn load_png_rgba(path: impl AsRef<Path>) -> Result<(usize, Vec<u8>)> {
     let decoder = png::Decoder::new(std::fs::File::open(path)?);
     let mut reader = decoder.read_info().context("Creating reader")?;
 
@@ -78,17 +76,25 @@ fn load_png_rgb(path: impl AsRef<Path>) -> Result<(usize, Vec<u8>)> {
 
     buf.truncate(info.buffer_size());
 
+    const DEFAULT_ALPHA: u8 = 0;
+
     let buf: Vec<u8> = match info.color_type {
-        png::ColorType::Rgb => buf,
-        png::ColorType::Rgba => buf
-            .chunks_exact(4)
-            .map(|px| [px[0], px[1], px[2]])
+        png::ColorType::Rgba => buf,
+        png::ColorType::Rgb => buf
+            .chunks_exact(3)
+            .map(|px| [px[0], px[1], px[2], DEFAULT_ALPHA])
             .flatten()
             .collect(),
-        png::ColorType::Grayscale => buf.iter().map(|&px| [px; 3]).flatten().collect(),
-        png::ColorType::GrayscaleAlpha => {
-            buf.chunks_exact(2).map(|px| [px[0]; 3]).flatten().collect()
-        }
+        png::ColorType::Grayscale => buf
+            .iter()
+            .map(|&px| [px, px, px, DEFAULT_ALPHA])
+            .flatten()
+            .collect(),
+        png::ColorType::GrayscaleAlpha => buf
+            .chunks_exact(2)
+            .map(|px| [px[0], px[0], px[0], px[1]])
+            .flatten()
+            .collect(),
         other => bail!("Images with color type {:?} are unsupported", other),
     };
 
