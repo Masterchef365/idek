@@ -1,5 +1,5 @@
 use crate::Transform;
-use crate::{App, DrawCmd, IndexBuffer, Settings, Shader, VertexBuffer};
+use crate::{App, DrawCmd, IndexBuffer, Settings, Shader, Texture, VertexBuffer};
 use crate::{DEFAULT_FRAGMENT_SHADER, DEFAULT_VERTEX_SHADER};
 use anyhow::{ensure, Result};
 use slotmap::SlotMap;
@@ -140,7 +140,7 @@ impl UploadBuffer {
 enum QueuedUpload {
     VertexBuffer(VertexBuffer),
     IndexBuffer(IndexBuffer),
-    //Texture(Texture),
+    Texture(Texture),
 }
 
 /// All data inside the scene UBO
@@ -199,6 +199,7 @@ pub struct Engine {
 
 // Public functions ("Context")
 impl Engine {
+    /// Upload a set of vertices
     pub fn vertices(&mut self, vertices: &[Vertex], dynamic: bool) -> Result<VertexBuffer> {
         let size_bytes = std::mem::size_of_val(vertices) as u64;
         let ci = vk::BufferCreateInfoBuilder::new()
@@ -231,6 +232,7 @@ impl Engine {
         Ok(key)
     }
 
+    /// Upload a set of indices
     pub fn indices(&mut self, indices: &[u32], dynamic: bool) -> Result<IndexBuffer> {
         let size_bytes = std::mem::size_of_val(indices) as u64;
         let ci = vk::BufferCreateInfoBuilder::new()
@@ -267,6 +269,7 @@ impl Engine {
         todo!()
     }*/
 
+    /// Upload a shader
     pub fn shader(
         &mut self,
         vertex: &[u8],
@@ -284,6 +287,7 @@ impl Engine {
         )?))
     }
 
+    /// Compile and upload the given shader source
     #[cfg(feature = "shaderc")]
     pub fn shader_glsl(
         &mut self,
@@ -316,6 +320,7 @@ impl Engine {
         (extent.width, extent.height)
     }
 
+    /// Return the time since the engine started
     pub fn start_time(&self) -> Instant {
         self.start_time
     }
@@ -326,6 +331,7 @@ impl Engine {
         self.camera_prefix = matrix;
     }
 
+    /// Dynamically upload vertices. Possibly only if the buffer was created as dynamic
     pub fn update_vertices(&mut self, handle: VertexBuffer, vertices: &[Vertex]) -> Result<()> {
         let memory = self.vertex_bufs.get_mut(handle).unwrap();
         let bytes = bytemuck::cast_slice(vertices);
@@ -335,6 +341,7 @@ impl Engine {
         Ok(())
     }
 
+    /// Dynamically upload indices. Possibly only if the buffer was created as dynamic
     pub fn update_indices(&mut self, handle: IndexBuffer, indices: &[u32]) -> Result<()> {
         let memory = self.index_bufs.get_mut(handle).unwrap();
         let bytes = bytemuck::cast_slice(indices);
