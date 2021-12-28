@@ -65,13 +65,13 @@ impl<T: Default> Default for Settings<T> {
 }
 
 impl<Args> Settings<Args> {
-    // Optionally enable VR
+    /// Optionally enable VR
     pub fn vr(mut self, vr: bool) -> Self {
         self.vr = vr;
         self
     }
 
-    // Set application name
+    /// Set application name
     pub fn name(mut self, name: String) -> Self {
         self.name = name;
         self
