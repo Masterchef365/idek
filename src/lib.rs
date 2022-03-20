@@ -24,12 +24,24 @@ pub use watertender::winit;
 pub static DEFAULT_VERTEX_SHADER: &[u8] = include_bytes!("shaders/unlit.vert.spv");
 pub static DEFAULT_FRAGMENT_SHADER: &[u8] = include_bytes!("shaders/unlit.frag.spv");
 
+#[derive(Debug, Copy, Clone)]
+pub enum Blend {
+    Additive,
+    Opaque,
+}
+
+impl Default for Blend {
+    fn default() -> Self {
+        Self::Opaque
+    }
+}
+
 /// Commonly used items
 pub mod prelude {
     pub use super::{
         launch, App, Context, DrawCmd, Event, IndexBuffer, MultiPlatformCamera, Platform,
         Primitive, Settings, Shader, Vertex, VertexBuffer, DEFAULT_FRAGMENT_SHADER,
-        DEFAULT_VERTEX_SHADER,
+        DEFAULT_VERTEX_SHADER, Blend,
     };
     pub use anyhow::Result;
 }
