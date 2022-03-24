@@ -838,7 +838,10 @@ pub fn shader(
 
     let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfoBuilder::new()
         .depth_test_enable(true)
-        .depth_write_enable(true)
+        .depth_write_enable(match blend {
+            Blend::Opaque => true,
+            Blend::Additive => false,
+        })
         .depth_compare_op(vk::CompareOp::LESS)
         .depth_bounds_test_enable(false)
         .stencil_test_enable(false);
